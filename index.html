@@ -211,6 +211,8 @@ table.rates button.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .rtools{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
 .ritem{display:flex;gap:8px;align-items:stretch;border-bottom:1px solid var(--desk-d);padding:6px 0}
 .ritem.sold{background:#D9EAD3;padding-left:6px;padding-right:6px;border-radius:6px}
+.ritem.void{background:#E6E6E6;padding-left:6px;padding-right:6px;border-radius:6px}
+.ritem.void .r3{color:var(--muted);text-decoration:line-through}
 .ropen{flex:1;text-align:left;color:var(--text);font-weight:400;display:block;line-height:1.55}
 .r1{display:flex;gap:10px;align-items:center}
 .r1 b{color:var(--ink)}
@@ -464,7 +466,7 @@ const HEADERS = [
   'ရွှေတန်ဖိုး', 'လက်ခ', 'ရွှေဖြူခ', 'ပစ္စည်းတန်ဖိုး', 'ဓာတ်ပုံ',
   'ကျောက်စဉ်', 'အမျိုးအစား', 'တွက်ပုံ', 'P (အလုံး)', 'ct', 'မြှောက်ကိန်း', 'R / B', 'ကျောက်နှုန်း', 'ကျောက်တန်ဖိုး',
   'ဘောင်ချာ စုစုပေါင်းချိန်', 'ဘောင်ချာ ရွှေတန်ဖိုး', 'ဘောင်ချာ ကျောက်/စိန်တန်ဖိုး', 'ဘောင်ချာ လက်ခ', 'ဘောင်ချာ ရွှေဖြူခ', 'ဘောင်ချာ ကျသင့်ငွေ',
-  'သိမ်းချိန်', 'ဘောင်ချာ ချိန် (ရွေး)'
+  'သိမ်းချိန်', 'ဘောင်ချာ ချိန် (ရွေး)', 'အခြေအနေ'
 ];
 // Sheets would turn "1.3.5" into a date and drop a phone's leading 0 — these go in as text
 const TEXT_COLS = ['ဖုန်း', 'ကျောက်+စိန်+ရွှေ', 'ကျောက်+စိန်ချိန်', 'ရွှေချိန်', 'လျော့', 'စုစုပေါင်းချိန်', 'P (အလုံး)', 'R / B', 'ဘောင်ချာ စုစုပေါင်းချိန်'];
@@ -474,7 +476,7 @@ const PHOTO_COL = HEADERS.indexOf('ဓာတ်ပုံ');
 function receiptRows(r) {
   const c = calcReceipt(r), rows = [];
   const push = (it, i, s, j) => {
-    const row = { 'ဘောင်ချာနံပါတ်': r.no, 'ရက်စွဲ': r.date, 'ဝယ်သူအမည်': r.name, 'ဖုန်း': latin(r.phone).trim() };
+    const row = { 'အခြေအနေ': r.cancelled ? 'ပယ်ဖျက်' : '', 'ဘောင်ချာနံပါတ်': r.no, 'ရက်စွဲ': r.date, 'ဝယ်သူအမည်': r.name,'ဖုန်း': latin(r.phone).trim() };
     if (!rows.length) Object.assign(row, {
       'လိပ်စာ': r.address, 'ရွှေဖိုး ပေးပုံ': r.goldCash ? 'ငွေ' : 'ရွှေချိန်', 'ပေါက်စျေး': r.goldCash ? num(r.base) || '' : '',
       'ဘောင်ချာ စုစုပေါင်းချိန်': fmtW(c.weight), 'ဘောင်ချာ ရွှေတန်ဖိုး': c.gold, 'ဘောင်ချာ ကျောက်/စိန်တန်ဖိုး': c.stone,
@@ -935,7 +937,8 @@ function recalc() {
   $('barW').textContent = `အမှတ် ${R.no || '—'}   ချိန် ${fmtW(c.weight)}   ပစ္စည်း ${myNum(R.items.length)} ခု`;
 
   const dup = findDup();
-  $('dupWarn').hidden = !dup;
+  $('dupWarn').hidden = !dup && !R.cancelled;
+  if (R.cancelled) $('dupWarn').textContent = 'ဒီဘောင်ချာကို ပယ်ဖျက်ထားပြီး — စာရင်းပေါင်းထဲ မပါပါ။';
   if (dup) $('dupWarn').textContent = `⚠ အမှတ် ${dup.no} ကို ${dmy(dup.date)} ${dup.name || ''} အတွက် သိမ်းပြီးသား။ သိမ်းလျှင် အဟောင်းကို အစားထိုးမည်။`;
   const done = !dirty && !!R.savedAt && !dup;
   [$('btnSave'), $('barSave')].forEach(b => {
@@ -1021,24 +1024,24 @@ function newReceiptClick() {
   showReceipt(newReceipt(), 'ဘောင်ချာအသစ် ဖွင့်ပြီး');
   pullFromSheet();
 }
-function delSaved(id, after) {
+// Receipts are never erased: a cancelled one keeps its number and stays listed, greyed out and left out of totals.
+function setCancelled(id, on, after) {
   const rec = SAVED.find(r => r.id === id);
   if (!rec) return;
-  storeSaved(SAVED.filter(r => r.id !== id));
+  rec.cancelled = on;
+  rec.savedAt = new Date().toISOString();
+  rec.synced = false;
+  storeSaved(SAVED);
   enqueue(rec.no, [], rec.id);
+  if (R.id === id) { R.cancelled = on; R.savedAt = rec.savedAt; store('draft', R); }
   refreshToday();
   recalc();
   if (after) after();
-  toast(`ဘောင်ချာ ${rec.no} ဖျက်ပြီး`, () => {
-    storeSaved(SAVED.filter(r => String(r.no) !== String(rec.no)).concat(rec));
-    enqueue(rec.no, [], rec.id);
-    refreshToday();
-    recalc();
-    if (after) after();
-  });
+  if (on) toast(`ဘောင်ချာ ${rec.no} ပယ်ဖျက်ပြီး`, () => setCancelled(id, false, after));
+  else toast(`ဘောင်ချာ ${rec.no} ပြန်ယူပြီး`);
 }
 function refreshToday() {
-  const t = todayISO(), list = SAVED.filter(r => r.date === t);
+  const t = todayISO(), list = SAVED.filter(r => r.date === t && !r.cancelled);
   const sum = list.reduce((a, r) => a + (r.total ?? calcReceipt(r).total), 0);
   $('todayCount').textContent = `ယနေ့ ဘောင်ချာ ${myNum(list.length)} စောင်`;
   $('todayTotal').textContent = money(sum) + ' ကျပ်';
@@ -1260,13 +1263,13 @@ function openSearch() {
         : 'သိမ်းထားသော ဘောင်ချာ မရှိသေးပါ။ ဘောင်ချာ ရေးပြီး "သိမ်းမည်" နှိပ်လျှင် ဒီမှာ ပေါ်မည်။'));
       return;
     }
-    list.replaceChildren(...shown.slice(0, 200).map(r => h('div', { class: 'ritem' + (String(r.name || '').trim() ? ' sold' : '') },
+    list.replaceChildren(...shown.slice(0, 200).map(r => h('div', { class: 'ritem' + (r.cancelled ? ' void' : String(r.name || '').trim() ? ' sold' : '') },
       h('button', { type: 'button', class: 'ropen', onclick: () => openSaved(r.id) },
         h('div', { class: 'r1' }, h('b', {}, `#${r.no}`), h('span', {}, dmy(r.date)),
           h('span', { class: 'dot ' + (r.synced ? 'ok' : 'wait'), title: r.synced ? 'Drive ထဲ ရောက်ပြီး' : 'Drive ထဲ မပို့ရသေး' })),
-        h('div', {}, (r.name || 'အမည်မရှိ') + (r.phone ? '   ' + r.phone : '')),
+        h('div', {}, (r.cancelled ? 'ပယ်ဖျက်ပြီး · ' : '') + (r.name || 'အမည်မရှိ') + (r.phone ? '   ' + r.phone : '')),
         h('div', { class: 'r3' }, money(r.total ?? calcReceipt(r).total) + ' ကျပ်')),
-      h('button', { type: 'button', class: 'x', 'aria-label': `ဘောင်ချာ ${r.no} ဖျက်မည်`, onclick: () => delSaved(r.id, draw) }, '✕'))));
+      h('button', { type: 'button', class: 'x', 'aria-label': `ဘောင်ချာ ${r.no} ${r.cancelled ? 'ပြန်ယူမည်' : 'ပယ်ဖျက်မည်'}`, onclick: () => setCancelled(r.id, !r.cancelled, draw) }, r.cancelled ? '↩' : '✕'))));
   };
   q.addEventListener('input', draw);
   openModal('သိမ်းထားသော ဘောင်ချာများ', h('div', {}, q,
