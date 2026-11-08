@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#DCE1E3">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ဘောင်ချာ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ဘောင်ချာ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Serif+Myanmar:wght@600;700&display=swap">
+<style>
+/* The receipt is drawn as the shop's yellow slip: printed form in maroon, what staff write in ballpoint blue,
+   what the app works out in green. Everything around the slip stays a quiet counter grey. */
+:root{
+  --desk:#DCE1E3; --desk-d:#C3CBCF;
+  --slip:#FFF4C2; --field:#FFFDF2; --slip-edge:#E2CE78;
+  --print:#8A2E22; --rule:rgba(138,46,34,.24);
+  --ink:#1E3A8A; --ink-l:#D9E2F6;
+  --text:#1F1B16; --muted:#5E5649;
+  --calc:#2E6B34; --calc-bg:#E3F0DE; --calc-b:#93BF8B;
+  --err:#C62828; --err-bg:#FDE7E7;
+  --ok:#2E7D32; --wait:#B86E00;
+  --f-ui:"Noto Sans Myanmar","Pyidaungsu","Myanmar Text","Myanmar Sangam MN","Padauk",system-ui,sans-serif;
+  --f-print:"Noto Serif Myanmar","Pyidaungsu","Myanmar Text","Myanmar Sangam MN",serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--desk);color:var(--text);font:17px/1.7 var(--f-ui);
+  padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+.wrap{max-width:860px;margin-left:auto;margin-right:auto;padding-left:16px;padding-right:16px}
+button,input,select{font:inherit;color:inherit}
+input,select{width:100%;min-width:0;min-height:48px;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;
+  background:var(--field);color:var(--ink);font-size:18px;font-weight:600}
+input::placeholder{color:#A39A86;font-weight:400}
+input:focus,select:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px var(--ink-l)}
+select:disabled{background:transparent;color:var(--muted);border-style:dashed}
+button{min-height:48px;padding:8px 16px;border-radius:10px;border:1.5px solid var(--desk-d);background:#fff;color:var(--ink);
+  font-weight:600;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button:active{transform:translateY(1px)}
+button.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+button.primary.done{background:#fff;color:var(--ok);border-color:var(--ok)}
+button.sm{min-height:40px;padding:4px 12px;font-size:15px}
+button.danger{color:var(--err)}
+button.add{width:100%;border:1.5px dashed var(--print);background:transparent;color:var(--print)}
+.muted{color:var(--muted);font-size:14px}
+
+/* counter: header, today, actions */
+.top{display:flex;align-items:center;gap:8px;padding-top:14px}
+.brand{flex:1;min-width:0}
+.shop{font:700 23px/1.5 var(--f-print);color:var(--print)}
+.kind{font-size:14px;color:var(--muted)}
+.chip{display:flex;align-items:center;gap:8px;padding:0 12px;font-size:14px;color:var(--text);white-space:nowrap}
+.icon{min-width:48px;padding:0;font-size:20px;color:var(--text)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#9AA3A8;flex:none}
+.dot.ok{background:var(--ok)} .dot.wait{background:var(--wait)} .dot.bad{background:var(--err)}
+.today{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:10px;padding-top:8px;padding-bottom:8px;
+  border-top:1px solid var(--desk-d);border-bottom:1px solid var(--desk-d);font-size:15px;color:var(--muted)}
+.today b{color:var(--text);font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.actions{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:8px;margin-top:12px;margin-bottom:14px}
+.actions .new{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* the slip */
+.slip{background:var(--slip);border:1px solid var(--slip-edge);border-radius:6px;padding:14px 12px;margin:0 0 18px;
+  box-shadow:0 2px 0 -1px #F3E3A0,0 2px 0 0 var(--slip-edge),0 5px 0 -2px #F3E3A0,0 5px 0 -1px var(--slip-edge)}
+@media (min-width:481px){.slip{padding:16px 18px}}
+.f{display:block;margin:0 0 10px}
+.f>span{display:block;font-size:14px;color:var(--print);margin-bottom:2px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.headrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px}
+.no-input{font-size:24px;font-weight:700;letter-spacing:.02em}
+.mode{display:flex;align-items:center;gap:10px;padding-top:10px;margin-bottom:10px;border-top:1px solid var(--rule)}
+.mode>span{font-size:14px;color:var(--print);white-space:nowrap}
+.mode .seg{flex:1}
+.weight-mode .cash-only{display:none!important}
+.baserow{display:flex;gap:10px;align-items:flex-end}
+.baserow .f{flex:1;min-width:0}
+.baserow button{margin-bottom:10px}
+.warn{background:var(--err-bg);color:var(--err);border-radius:8px;padding:8px 12px;font-size:15px;margin:0 0 10px}
+.sec{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:15px;font-weight:600;color:var(--print)}
+.sec::after{content:"";flex:1;border-top:1px solid var(--rule)}
+.calc{color:var(--text);font-variant-numeric:tabular-nums}
+
+/* item slip */
+.ihead{display:grid;grid-template-columns:auto minmax(0,1fr) 32px;align-items:center;gap:10px;width:100%;
+  min-height:44px;padding:0;margin:0 0 6px;border:0;background:transparent;color:var(--text);text-align:left;font-weight:400}
+.ititle{font:700 19px/1.5 var(--f-print);color:var(--print);white-space:nowrap}
+.peek{display:flex;gap:10px;justify-content:flex-end;align-items:baseline;min-width:0;font-size:15px;font-variant-numeric:tabular-nums}
+.peek .pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.peek b{color:var(--ink)}
+.chev{font-size:20px;color:var(--print);justify-self:center;line-height:1}
+.item:not(.closed) .peek{visibility:hidden}
+.item.closed .ihead{margin:0}
+.item.closed .ibody{display:none}
+.item:not(.closed) .chev{transform:rotate(180deg)}
+.refrow{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:10px}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.rateline{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:15px;color:var(--print)}
+.rateline .calc{font-size:17px;font-weight:700}
+
+/* weight block, written like the slip: total − stones = gold + လျော့ = final */
+.ladder{display:grid;gap:6px;max-width:560px}
+.wrow,.wunits{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.wboxes{display:grid;grid-template-columns:repeat(3,48px) 44px;gap:5px}
+@media (min-width:481px){.wboxes{grid-template-columns:repeat(3,64px) 56px}}
+.wunits .wboxes span{text-align:center;font-size:13px;color:var(--print)}
+.wlabel{display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:2px;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.op{font-weight:700;color:var(--print);font-size:18px;line-height:1.2}
+.pill{grid-column:2;justify-self:start;display:none;font-size:12px;background:var(--calc-bg);color:var(--calc);border-radius:99px;padding:0 8px;margin-top:2px}
+.wrow.auto .pill{display:block}
+.wboxes input{text-align:center;padding:4px 2px;font-size:20px}
+.wrow.auto input,.wrow.auto .half:not([aria-pressed="true"]){background:var(--calc-bg);border-color:var(--calc-b);color:var(--calc)}
+.wrow.bad input,.wrow.neg input{border-color:var(--err)}
+.half{width:100%;min-height:48px;padding:0;border:1.5px solid var(--rule);border-radius:8px;background:var(--field);color:#B5AC98;font-size:20px}
+.half[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.wrow.final{padding-top:8px;margin-top:2px;border-top:1px solid var(--print)}
+.wrow.final>b{font-size:22px;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* stone lines */
+.shead,.srow{display:grid;grid-template-columns:104px 84px 56px 72px 60px minmax(110px,1fr) 108px 92px 44px;gap:6px;align-items:center}
+.shead{font-size:13px;color:var(--print);padding:0 2px}
+.srow{padding:6px 0;border-bottom:1px solid var(--rule)}
+.sc::before{content:attr(data-label);display:none;font-size:12px;color:var(--print);line-height:1.5}
+.sc .calc{display:block;font-size:15px}
+.c-val .calc{font-weight:700;color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;min-height:48px;border:1.5px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--field)}
+.seg button{min-height:45px;border:0;border-radius:0;padding:0 4px;background:transparent;color:var(--muted);font-size:16px}
+.seg button+button{border-left:1.5px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.x{min-width:44px;padding:0;border-color:var(--rule);background:var(--field);color:var(--err);font-size:18px}
+@media (max-width:880px){
+  .shead{display:none}
+  .srow{grid-template-columns:repeat(6,minmax(0,1fr)) 44px;
+    grid-template-areas:"kind kind kind pcs pcs pcs x" "ct ct mult mult rate rate rate" "basis basis basis rb rb rb rb" "val val val val val val val";
+    column-gap:6px;row-gap:4px;background:var(--field);border:1px solid var(--rule);border-radius:8px;padding:8px;margin-bottom:8px}
+  .sc::before{display:block}
+  .c-kind{grid-area:kind}.c-basis{grid-area:basis}.c-pcs{grid-area:pcs}.c-ct{grid-area:ct}.c-mult{grid-area:mult}.c-rate{grid-area:rate}
+  .c-rb{grid-area:rb;align-self:end}
+  .c-val{grid-area:val;display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed var(--rule);padding-top:4px}
+  .srow .x{grid-area:x;align-self:end}
+}
+.stones .add{margin-top:6px}
+
+/* photo, item totals, footer */
+.photo{display:flex;gap:10px;align-items:center;margin-top:6px}
+.photo img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--slip-edge)}
+.pbtns{display:flex;flex-direction:column;gap:6px}
+.isum{margin-top:14px;padding-top:6px;border-top:1px solid var(--rule)}
+.kv{display:flex;justify-content:space-between;flex-wrap:wrap;column-gap:12px;font-size:15px}
+.kv>:first-child{color:var(--print)}
+.kv>:last-child{font-variant-numeric:tabular-nums;text-align:right;margin-left:auto}
+.kv.tot{font-size:18px;font-weight:700;border-top:3px double var(--print);margin-top:6px;padding-top:4px}
+.kv.tot>:last-child{color:var(--ink)}
+.ifoot{display:flex;gap:8px;margin-top:12px}
+.empty{text-align:center;color:var(--muted);padding:18px 0 4px}
+
+/* receipt totals */
+.totals .kv{font-size:16px}
+.grand{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:6px;border-top:3px double var(--print)}
+.grand span{font:700 20px/1.5 var(--f-print);color:var(--print)}
+.grand b{font-size:30px;line-height:1.3;color:var(--ink);font-variant-numeric:tabular-nums;margin-left:auto}
+.row-btns{display:flex;gap:10px;margin-bottom:14px}
+.row-btns button{flex:1}
+
+/* sticky total bar */
+.bar{position:fixed;left:0;right:0;bottom:0;background:#FFFDF4;border-top:1px solid var(--slip-edge);box-shadow:0 -4px 14px rgba(31,27,22,.12);
+  padding:8px 16px calc(8px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px;z-index:20}
+.bar-l{flex:1;min-width:0}
+.bar-total{font-size:22px;font-weight:700;color:var(--ink);line-height:1.35;font-variant-numeric:tabular-nums}
+.bar-w{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar button{min-width:124px}
+
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom));background:var(--text);color:#fff;
+  border-radius:10px;padding:6px 6px 6px 16px;display:flex;align-items:center;gap:12px;z-index:40;width:max-content;max-width:calc(100% - 32px);
+  box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:15px}
+.toast button{background:transparent;color:#FFE58A;border-color:#FFE58A;min-height:40px}
+@media (prefers-reduced-motion:no-preference){
+  .toast{animation:rise .18s ease-out}
+  .chev{transition:transform .15s}
+  @keyframes rise{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+}
+
+/* modal sheet */
+.modal{position:fixed;inset:0;background:rgba(31,27,22,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#FFFDF4;width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:0 16px 24px}
+@media (min-width:700px){.modal{align-items:center}.sheet{border-radius:14px}}
+.sheet-h{display:flex;align-items:center;gap:8px;position:sticky;top:0;background:#FFFDF4;padding:12px 0 8px;z-index:1}
+.sheet-h b{flex:1;font:700 19px/1.5 var(--f-print);color:var(--print)}
+.stack>*{margin-bottom:10px}
+.stack .f>span{color:var(--muted)}
+table.rates{width:100%;border-collapse:collapse;font-size:14px}
+table.rates th{font-weight:600;color:var(--print);padding:4px;white-space:nowrap}
+table.rates td{padding:3px}
+table.rates td>*{display:block;width:100%;min-height:44px;padding:2px;font-size:14px;font-variant-numeric:tabular-nums;text-align:center;line-height:40px}
+table.rates td>span{border:1px solid var(--desk-d);border-radius:8px;background:#fff;color:var(--muted)}
+table.rates button{line-height:1.2}
+table.rates button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.rtools{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+.ritem{display:flex;gap:8px;align-items:stretch;border-bottom:1px solid var(--desk-d);padding:6px 0}
+.ropen{flex:1;text-align:left;color:var(--text);font-weight:400;display:block;line-height:1.55}
+.r1{display:flex;gap:10px;align-items:center}
+.r1 b{color:var(--ink)}
+.r3{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* printed slip */
+#slip{display:none}
+@media print{
+  @page{size:A5;margin:8mm}
+  body{background:#fff;padding:0;font-size:10.5pt;line-height:1.5}
+  body>*:not(#slip){display:none!important}
+  #slip{display:block;color:#000}
+  .s-head{text-align:center;border-bottom:1.5px solid #000;padding-bottom:4px;margin-bottom:6px}
+  .s-shop{font:700 16pt/1.5 var(--f-print)}
+  .s-small{font-size:9pt}
+  .s-meta{display:flex;justify-content:space-between;font-weight:700}
+  .s-item{border:1px solid #000;border-radius:4px;padding:4px 6px;margin:6px 0;break-inside:avoid}
+  .s-ib{display:flex;gap:8px}
+  .s-left{flex:1}
+  .s-ph{width:26mm;height:26mm;object-fit:cover;border:1px solid #000}
+  #slip table{width:100%;border-collapse:collapse}
+  #slip td{padding:0 2px;vertical-align:top}
+  #slip td.r{text-align:right;white-space:nowrap}
+  #slip tr.b td{font-weight:700}
+  #slip tr.line td{border-top:1px solid #000}
+  #slip .st td{font-size:9.5pt}
+  #slip .s-tot{margin-top:6px;border-top:2px solid #000}
+  #slip .s-tot tr.big td{font-size:14pt}
+  .s-sign{display:flex;justify-content:space-between;margin-top:16mm}
+  .s-sign span{border-top:1px solid #000;padding-top:2px;width:40%;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <div class="brand">
+    <div class="shop" id="shopName"></div>
+    <div class="kind" id="shopKind"></div>
+  </div>
+  <button type="button" class="chip" id="btnSync"><span class="dot" id="syncDot"></span><span id="syncText"></span></button>
+  <button type="button" class="icon" id="btnSettings" aria-label="Drive ချိတ်ဆက်ရန် ဆက်တင်">⚙</button>
+</header>
+<div class="wrap"><div class="today"><span id="todayCount"></span><b id="todayTotal"></b></div></div>
+<nav class="wrap actions">
+  <button type="button" id="btnNew" class="new">＋ ဘောင်ချာအသစ်</button>
+  <button type="button" id="btnSearch">🔍 ရှာမည်</button>
+</nav>
+
+<main class="wrap">
+  <section class="slip">
+    <div class="headrow">
+      <label class="f"><span>ဘောင်ချာ အမှတ်</span><input id="fNo" class="no-input" inputmode="numeric" autocomplete="off"></label>
+      <label class="f"><span>ရက်စွဲ</span><input id="fDate" type="date"></label>
+    </div>
+    <div id="dupWarn" class="warn" hidden></div>
+    <label class="f"><span>ဝယ်သူအမည်</span><input id="fName" autocomplete="off"></label>
+    <div class="grid2">
+      <label class="f"><span>ဖုန်း</span><input id="fPhone" type="tel" inputmode="tel" autocomplete="off"></label>
+      <label class="f"><span>လိပ်စာ</span><input id="fAddr" autocomplete="off"></label>
+    </div>
+    <div class="mode"><span>ရွှေဖိုး</span>
+      <div class="seg" role="group" aria-label="ရွှေဖိုး ပေးပုံ"><button type="button" id="modeWeight" aria-pressed="true">ရွှေချိန်ဖြင့်</button><button type="button" id="modeCash" aria-pressed="false">ငွေဖြင့်</button></div>
+    </div>
+    <div class="baserow cash-only">
+      <label class="f"><span>ယနေ့ ပေါက်စျေး (၁၆ ပဲရည် ၁ ကျပ်သား)</span><input id="fBase" inputmode="numeric" autocomplete="off" placeholder="ဥပမာ 5,000,000"></label>
+      <button type="button" id="btnRates">နှုန်းဇယား</button>
+    </div>
+  </section>
+
+  <div id="items"></div>
+  <div id="noItems" class="empty" hidden>ပစ္စည်း မရှိသေးပါ</div>
+  <button type="button" id="btnAddItem" class="add">＋ ပစ္စည်း ထည့်မည်</button>
+
+  <section class="slip totals" style="margin-top:18px">
+    <div class="kv"><span>စုစုပေါင်းချိန်</span><b id="tWeight" class="calc"></b></div>
+    <div class="kv cash-only"><span>ရွှေတန်ဖိုး</span><span id="tGold"></span></div>
+    <div class="kv"><span>ကျောက်/စိန်တန်ဖိုး</span><span id="tStone"></span></div>
+    <div class="kv"><span>လက်ခ</span><span id="tLak"></span></div>
+    <div class="kv"><span>ရွှေဖြူခ</span><span id="tWhite"></span></div>
+    <div class="grand"><span>ကျသင့်ငွေ</span><b id="tTotal"></b></div>
+  </section>
+  <div class="row-btns">
+    <button type="button" id="btnSave" class="primary">သိမ်းမည်</button>
+    <button type="button" id="btnPrint">🖨 ပုံနှိပ်မည်</button>
+  </div>
+</main>
+
+<div class="bar">
+  <div class="bar-l"><div class="bar-total" id="barTotal"></div><div class="bar-w" id="barW"></div></div>
+  <button type="button" id="barSave" class="primary">သိမ်းမည်</button>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="sheet-h"><b id="mTitle"></b><button type="button" class="sm" id="mClose" aria-label="ပိတ်">✕</button></div>
+    <div id="mBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"><span id="tMsg"></span><button type="button" id="tUndo">ပြန်ယူ</button></div>
+<div id="slip"></div>
+
+<script>
+'use strict';
+
+/* ───────── ဆိုင်အချက်အလက် — app ထဲက ပြင်လို့မရ၊ ဒီနေရာမှာသာ ပြင်ပါ ───────── */
+const SHOP = Object.freeze({
+  name: 'ရွှေဆိုင်',
+  kind: 'စိန် / ရွှေ (စက်ပန်းထိမ်)',
+  owner: '(ဆိုင်ရှင်အမည်)',
+  address: '(လိပ်စာ)',
+  phone: '(ဖုန်း)'
+});
+
+/* Drive sync — ဖုန်းတိုင်း ⚙ ထဲ ထည့်စရာမလိုအောင် ဒီမှာ ကြိုထည့်ထားနိုင်သည် */
+const SYNC_DEFAULT = { url: '', key: '' };
+
+/* ───────── units ─────────
+   ရွှေ: 1 ကျပ် = 16 ပဲ, 1 ပဲ = 8 ရွေး, 1 ရွေး = 2 (½) → 1 ကျပ် = 256 half-ရွေး. Weights are stored as integer half-ရွေး.
+   ကျောက်: R 1 = 20 B, B 1 = 8 → 1 R = 160 units.
+   ရည်: 1 ပဲ = 4 ပြား. */
+const HALVES_PER_KYAT = 256;
+const PYAR_PER_PE = 4;
+const STONE_UNITS = 160;
+const DEFAULT_MULT = 1.1;
+const PE_OPTIONS = [16, 15, 14, 13, 12, 11, 10];
+const PYAR_OPTIONS = [0, 1, 2, 3];
+const STONE_KINDS = ['စိန်', 'ပတ္တမြား', 'မြ', 'ကျောက်'];
+const BASES = ['R', 'ct'];
+
+const MY_DIGITS = '၀၁၂၃၄၅၆၇၈၉';
+const latin = s => String(s ?? '').replace(/[၀-၉]/g, d => MY_DIGITS.indexOf(d));
+const myNum = n => String(n).replace(/\d/g, d => MY_DIGITS[d]);
+function num(v) { const n = parseFloat(latin(v).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+const money = n => Math.round(n).toLocaleString('en-US');
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const clone = o => JSON.parse(JSON.stringify(o));
+function todayISO() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+function dmy(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}`; }
+
+/* ───────── weight ───────── */
+const toHalves = (k, p, y, h) => ((k * 16 + p) * 8 + y) * 2 + (h ? 1 : 0);
+function splitHalves(t) { return { k: Math.floor(t / 256), p: Math.floor(t / 16) % 16, y: Math.floor(t / 2) % 8, h: t % 2 }; }
+// 315 → "1.3.5.½"
+function fmtW(t) {
+  if (t == null) return '';
+  const s = splitHalves(Math.abs(t));
+  return (t < 0 ? '-' : '') + `${s.k}.${s.p}.${s.y}` + (s.h ? '.½' : '');
+}
+// Slip shorthand → half-ရွေး; null = blank; NaN = unreadable.
+//   "1.3.5.½"        ကျပ်.ပဲ.ရွေး.½
+//   "15'.7.½"        the tick marks ပဲ, as written in the book
+//   "6.½", "3.3.0"   ending in ½ or 0: counted from the right (ရွေး.½, ပဲ.ရွေး.½)
+//   "1.3.5", "1.3"   otherwise from the left (ကျပ်.ပဲ.ရွေး)
+function parseShorthand(str) {
+  const s = latin(str).trim().replace(/[’‘`´]/g, "'");
+  if (!s) return null;
+  const t = s.replace(/½/g, '.h').split(/[.\s\-\/,+]+/).filter(Boolean);
+  if (!t.length || t.length > 4 || t.some(x => !/^(\d+'?|h)$/.test(x)) || t.slice(0, -1).includes('h')) return NaN;
+  const n = x => parseInt(x, 10), end = t[t.length - 1], tick = t.findIndex(x => x.endsWith("'"));
+  let k = 0, p = 0, y = 0, h = false;
+  if (tick >= 0) {
+    const rest = t.slice(tick + 1);
+    if (tick > 1 || rest.length > 2 || rest.some(x => x.endsWith("'"))) return NaN;
+    if (tick === 1) k = n(t[0]);
+    p = n(t[tick]);
+    if (rest[0] === 'h') h = true; else if (rest[0]) y = n(rest[0]);
+    if (rest[1]) h = rest[1] === 'h' || n(rest[1]) > 0;
+  } else if (t.length === 4 || end === 'h' || end === '0') {
+    h = end === 'h' || n(end) > 0;
+    [y = 0, p = 0, k = 0] = t.slice(0, -1).map(n).reverse();
+  } else {
+    [k = 0, p = 0, y = 0] = t.map(n);
+  }
+  return toHalves(k, p, y, h);
+}
+const SHORTHAND_SEP = /[.\s\-\/,+½'’‘`´]/;
+
+/* ───────── stones ───────── */
+function stoneMult(s) { return String(s.mult ?? '').trim() === '' ? DEFAULT_MULT : num(s.mult); }
+// carat × multiplier, rounded to a whole 1/160 BEFORE the rate is applied (matches the shop book)
+function stoneUnits(s) { return Math.round(+(num(s.ct) * stoneMult(s) * STONE_UNITS).toFixed(6)); }
+// Book: rubies are priced carat × rate; diamonds, emeralds and the rest R × rate.
+const defaultBasis = kind => kind === 'ပတ္တမြား' ? 'ct' : 'R';
+const stoneBasis = s => s.basis || defaultBasis(s.kind);
+// The shop drops the fraction: 726,562.5 → 726,562
+function stoneValue(s) {
+  const amt = stoneBasis(s) === 'ct' ? num(s.ct) * num(s.rate) : stoneUnits(s) * num(s.rate) / STONE_UNITS;
+  return Math.floor(+amt.toFixed(6));
+}
+// 95 → "R0. 11.7/8 B"
+function fmtRB(u) { const r = Math.floor(u / 160), rem = u % 160; return `R${r}. ${Math.floor(rem / 8)}.${rem % 8}/8 B`; }
+function stoneLabel(s) {
+  const p = latin(s.pcs).trim(), ct = latin(s.ct).trim();
+  return [p ? `P-${p}` : '', ct ? `<${ct}ct>` : ''].filter(Boolean).join(' ');
+}
+
+/* ───────── pricing ───────── */
+const goldRate = (base, pe, pyar) => num(base) * (num(pe) + num(pyar) / PYAR_PER_PE) / 16;
+const refLabel = (pe, pyar) => `${pe} ပဲ` + (+pyar ? ` ${pyar} ပြား` : '') + 'ရည်';
+
+// cash = false: gold is settled by weight (the book's usual case, ရွှေဖိုး left blank) and stays out of the money
+function calcItem(it, base, cash) {
+  const rate = goldRate(base, it.pe, it.pyar);
+  const fin = it.w.gold == null ? null : it.w.gold + (it.w.loss || 0);
+  const goldVal = !cash || fin == null ? 0 : Math.round(fin / HALVES_PER_KYAT * rate);
+  const stones = it.stones.map(s => ({ units: stoneUnits(s), value: stoneValue(s) }));
+  const stoneVal = stones.reduce((a, s) => a + s.value, 0);
+  const lak = Math.round(num(it.lak)), white = Math.round(num(it.white));
+  const pwa = Math.max(1, Math.round(num(it.pwa)) || 1);
+  const piece = goldVal + stoneVal + lak + white;
+  return { rate, fin, goldVal, stones, stoneVal, lak, white, pwa, piece, sub: piece * pwa, weight: (fin || 0) * pwa };
+}
+function calcReceipt(r) {
+  const items = r.items.map(it => calcItem(it, r.base, r.goldCash));
+  const t = { items, gold: 0, stone: 0, lak: 0, white: 0, weight: 0, total: 0 };
+  items.forEach(c => {
+    t.gold += c.goldVal * c.pwa; t.stone += c.stoneVal * c.pwa;
+    t.lak += c.lak * c.pwa; t.white += c.white * c.pwa;
+    t.weight += c.weight; t.total += c.sub;
+  });
+  return t;
+}
+
+/* Slip weight block: total − stone = gold, + လျော့ = final.
+   Any two of total/stone/gold fill the third; it.auto names the derived field. Returns fields it rewrote. */
+function ladder(it, f) {
+  const w = it.w, out = [];
+  it.err = null;
+  if (f === 'loss') return out;
+  if (f === 'total' && w.total == null) {
+    if (it.auto) { w[it.auto] = null; out.push(it.auto); it.auto = null; }
+    return out;
+  }
+  let target;
+  if (f === 'total') target = it.auto === 'stone' || (!it.auto && w.gold != null && w.stone == null) ? 'stone' : 'gold';
+  else if (w.total != null) target = f === 'stone' ? 'gold' : 'stone';
+  else { if (it.auto === f) it.auto = null; return out; }
+  const v = w.total - (w[target === 'gold' ? 'stone' : 'gold'] || 0);
+  it.auto = target;
+  if (v < 0) { w[target] = null; it.err = target; } else w[target] = v;
+  out.push(target);
+  return out;
+}
+
+/* ───────── Sheet / CSV rows: one row per stone line, bill totals on the receipt's first row ───────── */
+const HEADERS = [
+  'ဘောင်ချာနံပါတ်', 'ရက်စွဲ', 'ဝယ်သူအမည်', 'ဖုန်း', 'လိပ်စာ', 'ရွှေဖိုး ပေးပုံ', 'ပေါက်စျေး',
+  'ပစ္စည်းစဉ်', 'ပစ္စည်းအမည်', 'ရည် (ပဲ)', 'ရည် (ပြား)', 'ရွှေနှုန်း', 'ပွား',
+  'ကျောက်+စိန်+ရွှေ', 'ကျောက်+စိန်ချိန်', 'ရွှေချိန်', 'လျော့', 'စုစုပေါင်းချိန်',
+  'ရွှေတန်ဖိုး', 'လက်ခ', 'ရွှေဖြူခ', 'ပစ္စည်းတန်ဖိုး', 'ဓာတ်ပုံ',
+  'ကျောက်စဉ်', 'အမျိုးအစား', 'တွက်ပုံ', 'P (အလုံး)', 'ct', 'မြှောက်ကိန်း', 'R / B', 'ကျောက်နှုန်း', 'ကျောက်တန်ဖိုး',
+  'ဘောင်ချာ စုစုပေါင်းချိန်', 'ဘောင်ချာ ရွှေတန်ဖိုး', 'ဘောင်ချာ ကျောက်/စိန်တန်ဖိုး', 'ဘောင်ချာ လက်ခ', 'ဘောင်ချာ ရွှေဖြူခ', 'ဘောင်ချာ ကျသင့်ငွေ',
+  'သိမ်းချိန်', 'ဘောင်ချာ ချိန် (ရွေး)'
+];
+// Sheets would turn "1.3.5" into a date and drop a phone's leading 0 — these go in as text
+const TEXT_COLS = ['ဖုန်း', 'ကျောက်+စိန်+ရွှေ', 'ကျောက်+စိန်ချိန်', 'ရွှေချိန်', 'လျော့', 'စုစုပေါင်းချိန်', 'P (အလုံး)', 'R / B', 'ဘောင်ချာ စုစုပေါင်းချိန်'];
+const TEXT_IDX = new Set(TEXT_COLS.map(h => HEADERS.indexOf(h)));
+const PHOTO_COL = HEADERS.indexOf('ဓာတ်ပုံ');
+
+function receiptRows(r) {
+  const c = calcReceipt(r), rows = [];
+  const push = (it, i, s, j) => {
+    const row = { 'ဘောင်ချာနံပါတ်': r.no, 'ရက်စွဲ': r.date, 'ဝယ်သူအမည်': r.name, 'ဖုန်း': latin(r.phone).trim() };
+    if (!rows.length) Object.assign(row, {
+      'လိပ်စာ': r.address, 'ရွှေဖိုး ပေးပုံ': r.goldCash ? 'ငွေ' : 'ရွှေချိန်', 'ပေါက်စျေး': r.goldCash ? num(r.base) || '' : '',
+      'ဘောင်ချာ စုစုပေါင်းချိန်': fmtW(c.weight), 'ဘောင်ချာ ရွှေတန်ဖိုး': c.gold, 'ဘောင်ချာ ကျောက်/စိန်တန်ဖိုး': c.stone,
+      'ဘောင်ချာ လက်ခ': c.lak, 'ဘောင်ချာ ရွှေဖြူခ': c.white, 'ဘောင်ချာ ကျသင့်ငွေ': c.total, 'သိမ်းချိန်': r.savedAt || '',
+      'ဘောင်ချာ ချိန် (ရွေး)': c.weight / 2
+    });
+    if (it) {
+      const ic = c.items[i];
+      row['ပစ္စည်းစဉ်'] = i + 1;
+      if (j === 0) Object.assign(row, {
+        'ပစ္စည်းအမည်': it.name, 'ရည် (ပဲ)': it.pe, 'ရည် (ပြား)': it.pyar, 'ရွှေနှုန်း': r.goldCash ? Math.round(ic.rate * 100) / 100 : '', 'ပွား': ic.pwa,
+        'ကျောက်+စိန်+ရွှေ': fmtW(it.w.total), 'ကျောက်+စိန်ချိန်': fmtW(it.w.stone), 'ရွှေချိန်': fmtW(it.w.gold),
+        'လျော့': fmtW(it.w.loss), 'စုစုပေါင်းချိန်': fmtW(ic.fin),
+        'ရွှေတန်ဖိုး': r.goldCash ? ic.goldVal : '', 'လက်ခ': ic.lak, 'ရွှေဖြူခ': ic.white, 'ပစ္စည်းတန်ဖိုး': ic.sub, 'ဓာတ်ပုံ': it.photoUrl || ''
+      });
+      if (s) Object.assign(row, {
+        'ကျောက်စဉ်': j + 1, 'အမျိုးအစား': s.kind, 'တွက်ပုံ': stoneBasis(s), 'P (အလုံး)': latin(s.pcs).trim(), 'ct': num(s.ct) || '',
+        'မြှောက်ကိန်း': stoneMult(s), 'R / B': fmtRB(ic.stones[j].units), 'ကျောက်နှုန်း': num(s.rate) || '', 'ကျောက်တန်ဖိုး': ic.stones[j].value
+      });
+    }
+    rows.push(HEADERS.map(h => row[h] ?? ''));
+  };
+  r.items.forEach((it, i) => { if (it.stones.length) it.stones.forEach((s, j) => push(it, i, s, j)); else push(it, i, null, 0); });
+  if (!rows.length) push(null);
+  return rows;
+}
+const rowsPerItem = it => Math.max(1, it.stones.length);
+
+/* ════════════════════════════ DOM ════════════════════════════ */
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  return el;
+}
+const field = (label, input) => h('label', { class: 'f' }, h('span', {}, label), input);
+const kvRow = (label, val, cls) => h('div', { class: 'kv' + (cls ? ' ' + cls : '') }, h('span', {}, label), val);
+function select(opts, val, onchange, fmt = String) {
+  const s = h('select', { onchange: e => onchange(e.target.value) }, opts.map(o => h('option', { value: o, text: fmt(o) })));
+  s.value = String(val);
+  return s;
+}
+// Amount box: plain digits while typing, commas once you leave it (5000000 → 5,000,000)
+const fmtAmount = v => String(v ?? '').trim() === '' ? '' : money(num(v));
+function amountInput(get, set, attrs) {
+  const el = h('input', Object.assign({ inputmode: 'numeric', autocomplete: 'off', value: fmtAmount(get()) }, attrs));
+  el.addEventListener('input', () => { set(el.value); changed(); });
+  el.addEventListener('blur', () => { if (el.value.trim()) { el.value = fmtAmount(el.value); set(el.value); changed(false); } });
+  return el;
+}
+
+/* ───────── storage ───────── */
+const KEY = 'rcpt.v7.';
+function load(k, def = null) { try { const v = localStorage.getItem(KEY + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } }
+function store(k, v) { try { localStorage.setItem(KEY + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+let SAVED = load('saved', []);
+function storeSaved(list) {
+  SAVED = list;
+  if (store('saved', list)) return true;
+  // ဖုန်းထဲ နေရာပြည့် — Drive ထဲ ရောက်ပြီးသား ဓာတ်ပုံတွေကို အဟောင်းဆုံးကစ ဖယ်
+  const old = list.filter(r => r.synced).sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''));
+  for (const r of old) {
+    let freed = false;
+    r.items.forEach(it => { if (it.photo && it.photoUrl) { it.photo = ''; freed = true; } });
+    if (freed && store('saved', list)) return true;
+  }
+  toast('ဖုန်းထဲ နေရာပြည့်နေသဖြင့် မသိမ်းနိုင်ပါ — ဘောင်ချာဟောင်း အချို့ ဖျက်ပါ');
+  return false;
+}
+const prefs = () => load('prefs', {});
+const setPref = p => store('prefs', Object.assign(prefs(), p));
+function cfg() { const c = load('cfg', {}); return { url: c.url || SYNC_DEFAULT.url, key: c.key || SYNC_DEFAULT.key }; }
+
+/* ───────── model ───────── */
+let R = null;
+let dirty = load('dirty', false);   // edits since the last save
+const refs = new Map();             // item id → DOM refs, so typing only updates text, never rebuilds inputs
+const collapsed = new Set();        // folded item cards (screen only, never saved)
+
+function newItem() {
+  const p = prefs();
+  return { id: uid(), name: '', pe: p.pe ?? 16, pyar: p.pyar ?? 0, pwa: '1',
+    w: { total: null, stone: null, gold: null, loss: null }, auto: null, err: null,
+    stones: [], lak: '', white: '', photo: '', photoUrl: '' };
+}
+function nextNo() { return Math.max(0, num(load('lastNo', 0)), ...SAVED.map(r => num(r.no))) + 1; }
+function newReceipt() {
+  return { id: uid(), no: String(nextNo()), date: todayISO(), name: '', phone: '', address: '',
+    base: prefs().base || '', goldCash: !!prefs().goldCash, items: [newItem()], savedAt: null };
+}
+function hasContent(it) {
+  const w = it.w;
+  return !!(it.name || w.total != null || w.stone != null || w.gold != null || w.loss != null ||
+    it.stones.length || num(it.lak) || num(it.white) || it.photo);
+}
+const hasAny = r => !!(r && (r.name || r.phone || r.items.some(hasContent)));
+const findDup = () => SAVED.find(r => String(r.no) === String(R.no) && r.id !== R.id);
+
+let draftTimer;
+function changed(edit = true) {
+  if (edit) dirty = true;
+  recalc();
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => { store('draft', R); store('dirty', dirty); }, 300);
+}
+
+/* ───────── weight input: ကျပ် / ပဲ / ရွေး / ½ ───────── */
+function setBoxes(b, v) {
+  if (v == null) b.k.value = b.p.value = b.y.value = '';
+  else { const s = splitHalves(v); b.k.value = s.k; b.p.value = s.p; b.y.value = s.y; }
+  b.hb.setAttribute('aria-pressed', String(v != null && v % 2 === 1));
+  b.wrap.classList.remove('bad');
+}
+function weightField(it, f, op, label) {
+  const k = h('input', { inputmode: 'decimal', autocomplete: 'off', 'aria-label': label + ' ကျပ်' });
+  const p = h('input', { inputmode: 'numeric', autocomplete: 'off', 'aria-label': label + ' ပဲ' });
+  const y = h('input', { inputmode: 'numeric', autocomplete: 'off', 'aria-label': label + ' ရွေး' });
+  const hb = h('button', { type: 'button', class: 'half', 'aria-pressed': 'false', 'aria-label': label + ' ½ ရွေး' }, '½');
+  const b = { k, p, y, hb };
+  b.wrap = h('div', { class: 'wrow' },
+    h('div', { class: 'wlabel' }, h('span', { class: 'op', 'aria-hidden': 'true' }, op), h('span', {}, label), h('span', { class: 'pill' }, 'တွက်ပြီး')),
+    h('div', { class: 'wboxes' }, k, p, y, hb));
+
+  const read = () => {
+    const kv = latin(k.value).trim();
+    if (SHORTHAND_SEP.test(kv)) return parseShorthand(kv);   // full "1.3.5.½" typed/pasted in the ကျပ် box
+    const parts = [kv, latin(p.value).trim(), latin(y.value).trim()];
+    const on = hb.getAttribute('aria-pressed') === 'true';
+    if (!parts.some(Boolean) && !on) return null;
+    if (parts.some(v => v && !/^\d+$/.test(v))) return NaN;
+    return toHalves(+parts[0] || 0, +parts[1] || 0, +parts[2] || 0, on);
+  };
+  const edit = () => {
+    const v = read();
+    b.wrap.classList.toggle('bad', Number.isNaN(v));
+    it.w[f] = Number.isNaN(v) ? null : v;
+    syncLadder(it, ladder(it, f));
+    changed();
+  };
+  const spread = () => {
+    if (!SHORTHAND_SEP.test(latin(k.value).trim())) return;
+    const v = parseShorthand(k.value);
+    if (v != null && !Number.isNaN(v)) setBoxes(b, v);
+  };
+  k.addEventListener('input', e => { if (e.inputType === 'insertFromPaste') spread(); edit(); });
+  k.addEventListener('change', spread);
+  p.addEventListener('input', edit);
+  y.addEventListener('input', edit);
+  hb.addEventListener('click', () => { hb.setAttribute('aria-pressed', String(hb.getAttribute('aria-pressed') !== 'true')); edit(); });
+  setBoxes(b, it.w[f]);
+  return b;
+}
+function syncLadder(it, fields) {
+  const ref = refs.get(it.id);
+  if (!ref) return;
+  fields.forEach(f => setBoxes(ref.w[f], it.w[f]));
+  ['stone', 'gold'].forEach(f => {
+    ref.w[f].wrap.classList.toggle('auto', it.auto === f);
+    ref.w[f].wrap.classList.toggle('neg', it.err === f);
+  });
+}
+
+/* ───────── item card ───────── */
+function setOpen(it, open) {
+  const ref = refs.get(it.id);
+  if (open) collapsed.delete(it.id); else collapsed.add(it.id);
+  if (!ref) return;
+  ref.el.classList.toggle('closed', !open);
+  ref.toggle.setAttribute('aria-expanded', String(open));
+}
+function buildItem(it, idx) {
+  const ref = { stones: new Map(), w: {} };
+  refs.set(it.id, ref);
+  const text = (key, attrs) => h('input', Object.assign({ value: it[key], autocomplete: 'off',
+    oninput: e => { it[key] = e.target.value; changed(); } }, attrs));
+  const amount = key => amountInput(() => it[key], v => { it[key] = v; });
+
+  ref.pe = select(PE_OPTIONS, it.pe, v => { it.pe = +v; fixPyar(); setPref({ pe: it.pe, pyar: it.pyar }); changed(); }, v => `${v} ပဲ`);
+  ref.pyar = select(PYAR_OPTIONS, it.pyar, v => { it.pyar = +v; setPref({ pyar: it.pyar }); changed(); }, v => `${v} ပြား`);
+  const fixPyar = () => {
+    const pure = +it.pe >= 16;
+    ref.pyar.disabled = pure;
+    if (pure && it.pyar) { it.pyar = 0; ref.pyar.value = '0'; }
+  };
+  fixPyar();
+  ref.rate = h('b', { class: 'calc' });
+
+  const lad = h('div', { class: 'ladder' },
+    h('div', { class: 'wunits', 'aria-hidden': 'true' }, h('span'),
+      h('div', { class: 'wboxes' }, ['ကျပ်', 'ပဲ', 'ရွေး', '½'].map(u => h('span', {}, u)))));
+  [['total', '', 'ကျောက်+\u200bစိန်+\u200bရွှေ'], ['stone', '−', 'ကျောက်+\u200bစိန်ချိန်'], ['gold', '=', 'ရွှေချိန်'], ['loss', '+', 'လျော့']].forEach(([f, op, l]) => {
+    ref.w[f] = weightField(it, f, op, l);
+    lad.append(ref.w[f].wrap);
+  });
+  ref.err = h('div', { class: 'warn', hidden: true });
+  ref.fin = h('b');
+  lad.append(ref.err, h('div', { class: 'wrow final' },
+    h('div', { class: 'wlabel' }, h('span', { class: 'op', 'aria-hidden': 'true' }, '='), h('span', {}, 'စုစုပေါင်းချိန်')), ref.fin));
+  if (idx === 0) lad.append(h('p', { class: 'hint' }, "ကျပ် အကွက်ထဲ 1.3.5.½ သို့မဟုတ် 15'.7.½ လို တစ်ခါတည်း ရိုက်လည်း ရသည်"));
+
+  ref.stoneHead = h('div', { class: 'shead' }, ['အမျိုး', 'တွက်ပုံ', 'P', 'ct', '× မြှောက်', 'နှုန်း', 'R / B', 'တန်ဖိုး', ''].map(t => h('span', {}, t)));
+  ref.stoneBox = h('div');
+  it.stones.forEach(s => ref.stoneBox.append(buildStone(it, s, ref)));
+  ref.stoneHead.hidden = !it.stones.length;
+
+  ref.photo = h('div', { class: 'photo' });
+  renderPhoto(it, ref);
+
+  ref.sum = { gold: h('span', { class: 'calc' }), stone: h('span'), lak: h('span'), white: h('span'), pwa: h('span'), sub: h('span') };
+  ref.pwaRow = kvRow('ပွား', ref.sum.pwa);
+  ref.peekName = h('span', { class: 'pname' });
+  ref.peekW = h('span');
+  ref.peekT = h('b');
+
+  const open = !collapsed.has(it.id);
+  ref.toggle = h('button', { type: 'button', class: 'ihead', 'aria-expanded': String(open), onclick: () => setOpen(it, collapsed.has(it.id)) },
+    h('span', { class: 'ititle' }, `ပစ္စည်း ${myNum(idx + 1)}`),
+    h('span', { class: 'peek' }, ref.peekName, ref.peekW, ref.peekT),
+    h('span', { class: 'chev', 'aria-hidden': 'true' }, '⌄'));
+
+  ref.el = h('section', { class: 'slip item' + (open ? '' : ' closed') },
+    ref.toggle,
+    h('div', { class: 'ibody' },
+      field('ပစ္စည်းအမည်', text('name', { placeholder: 'ဥပမာ – စိန်လက်စွပ်' })),
+      h('div', { class: 'refrow' },
+        h('div', { class: 'f' }, h('span', {}, 'ရည်'), h('div', { class: 'pair' }, ref.pe, ref.pyar)),
+        field('ပွား', text('pwa', { inputmode: 'numeric' }))),
+      h('div', { class: 'rateline cash-only' }, h('span', {}, 'ရွှေနှုန်း'), ref.rate,
+        h('button', { type: 'button', class: 'sm', onclick: () => openRates(it) }, 'ဇယား')),
+      h('div', { class: 'sec' }, 'အလေးချိန်'),
+      lad,
+      h('div', { class: 'stones' }, h('div', { class: 'sec' }, 'ကျောက် / စိန်'), ref.stoneHead, ref.stoneBox,
+        h('button', { type: 'button', class: 'add sm', onclick: () => addStone(it) }, '＋ ကျောက်/စိန် ထည့်မည်')),
+      h('div', { class: 'sec' }, 'လက်ခ နှင့် ရွှေဖြူခ'),
+      h('div', { class: 'grid2' }, field('လက်ခ', amount('lak')), field('ရွှေဖြူခ', amount('white'))),
+      ref.photo,
+      h('div', { class: 'isum' },
+        kvRow('ရွှေတန်ဖိုး', ref.sum.gold, 'cash-only'), kvRow('ကျောက်/စိန်', ref.sum.stone),
+        kvRow('လက်ခ', ref.sum.lak), kvRow('ရွှေဖြူခ', ref.sum.white), ref.pwaRow,
+        kvRow('ပစ္စည်းတန်ဖိုး', ref.sum.sub, 'tot')),
+      h('div', { class: 'ifoot' },
+        h('button', { type: 'button', class: 'sm', onclick: () => copyItem(it) }, 'ကော်ပီ ကူးမည်'),
+        h('button', { type: 'button', class: 'sm danger', onclick: () => delItem(it) }, 'ဖျက်မည်'))));
+  syncLadder(it, []);
+  return ref.el;
+}
+
+function buildStone(it, s, ref) {
+  const r = {};
+  const inp = (key, label, mode) => h('input', { value: s[key] ?? '', inputmode: mode || 'decimal', autocomplete: 'off', 'aria-label': label,
+    oninput: e => {
+      s[key] = e.target.value;
+      if (key === 'mult') setPref({ mult: s.mult });
+      changed();
+    } });
+  const rate = amountInput(() => s.rate, v => { s.rate = v; setPref({ rate: v }); }, { 'aria-label': 'နှုန်း' });
+  // R × rate or carat × rate: choosing the stone sets the book's usual way, staff can still switch the line
+  const bases = BASES.map(b => h('button', { type: 'button', 'aria-pressed': String(stoneBasis(s) === b), onclick: () => setBasis(b) }, b));
+  const setBasis = b => {
+    s.basis = b;
+    bases.forEach(x => x.setAttribute('aria-pressed', String(x.textContent === b)));
+    changed();
+  };
+  const kind = select(STONE_KINDS, s.kind, v => { s.kind = v; setBasis(defaultBasis(v)); });
+  const sc = (cls, label, child) => h('div', { class: 'sc ' + cls, 'data-label': label }, child);
+  r.rb = h('span', { class: 'calc' });
+  r.val = h('span', { class: 'calc' });
+  r.el = h('div', { class: 'srow' },
+    sc('c-kind', 'အမျိုး', kind),
+    sc('c-basis', 'တွက်ပုံ', h('div', { class: 'seg', role: 'group', 'aria-label': 'တန်ဖိုး တွက်ပုံ' }, bases)),
+    sc('c-pcs', 'P (အလုံး)', inp('pcs', 'P အလုံးရေ', 'numeric')),
+    sc('c-ct', 'ct', inp('ct', 'ကာရက်')),
+    sc('c-mult', '× မြှောက်', inp('mult', 'မြှောက်ကိန်း')),
+    sc('c-rate', 'နှုန်း', rate),
+    sc('c-rb', 'R / B', r.rb),
+    sc('c-val', 'တန်ဖိုး', r.val),
+    h('button', { type: 'button', class: 'x', 'aria-label': 'ဒီကျောက်ကြောင်း ဖျက်မည်', onclick: () => delStone(it, s) }, '✕'));
+  ref.stones.set(s.id, r);
+  return r.el;
+}
+function rebuildStones(it) {
+  const ref = refs.get(it.id);
+  if (!ref) return;
+  ref.stones.clear();
+  ref.stoneBox.replaceChildren(...it.stones.map(s => buildStone(it, s, ref)));
+  ref.stoneHead.hidden = !it.stones.length;
+}
+function addStone(it) {
+  const last = it.stones[it.stones.length - 1], p = prefs();
+  const s = { id: uid(), kind: last ? last.kind : STONE_KINDS[0], basis: last ? stoneBasis(last) : 'R', pcs: '', ct: '',
+    mult: last ? last.mult : String(p.mult ?? DEFAULT_MULT), rate: last ? last.rate : (p.rate || '') };
+  it.stones.push(s);
+  const ref = refs.get(it.id);
+  ref.stoneBox.append(buildStone(it, s, ref));
+  ref.stoneHead.hidden = false;
+  ref.stones.get(s.id).el.querySelector('input').focus();
+  changed();
+}
+function delStone(it, s) {
+  const i = it.stones.indexOf(s), rec = R;
+  it.stones.splice(i, 1);
+  const ref = refs.get(it.id);
+  ref.stones.get(s.id).el.remove();
+  ref.stones.delete(s.id);
+  ref.stoneHead.hidden = !it.stones.length;
+  changed();
+  toast('ကျောက်/စိန် တစ်ကြောင်း ဖျက်ပြီး', () => { if (R !== rec) return; it.stones.splice(i, 0, s); rebuildStones(it); changed(); });
+}
+
+/* ───────── photo (~20KB JPEG) ───────── */
+function loadImg(file) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(u); res(img); };
+    img.onerror = e => { URL.revokeObjectURL(u); rej(e); };
+    img.src = u;
+  });
+}
+async function compressPhoto(file) {
+  const img = await loadImg(file);
+  let max = 640, q = 0.7, out = '';
+  for (let i = 0; i < 10; i++) {
+    const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * sc));
+    c.height = Math.max(1, Math.round(img.naturalHeight * sc));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    out = c.toDataURL('image/jpeg', q);
+    if ((out.length - 23) * 0.75 <= 20480) break;
+    if (q > 0.45) q -= 0.1; else max = Math.round(max * 0.8);
+  }
+  return out;
+}
+function renderPhoto(it, ref) {
+  const file = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: async e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try { it.photo = await compressPhoto(f); it.photoUrl = ''; } catch (err) { toast('ဒီဓာတ်ပုံကို ဖွင့်မရပါ — နောက်တစ်ပုံ ရွေးပါ'); return; }
+    renderPhoto(it, refs.get(it.id) || ref);
+    changed();
+  } });
+  if (!it.photo && !it.photoUrl) {
+    ref.photo.replaceChildren(file, h('button', { type: 'button', onclick: () => file.click() }, '📷 ဓာတ်ပုံ ထည့်မည်'));
+    return;
+  }
+  const remove = () => {
+    const old = [it.photo, it.photoUrl], rec = R;
+    it.photo = it.photoUrl = '';
+    renderPhoto(it, ref);
+    changed();
+    toast('ဓာတ်ပုံ ဖျက်ပြီး', () => {
+      if (R !== rec) return;
+      [it.photo, it.photoUrl] = old;
+      const cur = refs.get(it.id);
+      if (cur) renderPhoto(it, cur);
+      changed();
+    });
+  };
+  ref.photo.replaceChildren(file,
+    it.photo ? h('img', { src: it.photo, alt: 'ပစ္စည်း ဓာတ်ပုံ' }) : h('a', { href: it.photoUrl, target: '_blank', rel: 'noopener' }, 'Drive ထဲက ဓာတ်ပုံ ကြည့်မည်'),
+    h('div', { class: 'pbtns' },
+      h('button', { type: 'button', class: 'sm', onclick: () => file.click() }, 'ပုံ ပြောင်းမည်'),
+      h('button', { type: 'button', class: 'sm danger', onclick: remove }, 'ပုံ ဖျက်မည်')));
+}
+
+/* ───────── items ───────── */
+function renderItems() {
+  refs.clear();
+  $('items').replaceChildren(...R.items.map((it, i) => buildItem(it, i)));
+  $('noItems').hidden = R.items.length > 0;
+}
+function scrollToItem(it) {
+  const ref = refs.get(it.id);
+  if (ref) ref.el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+function addItem() {
+  // fold the finished items so the new one has the screen
+  R.items.forEach(x => { if (hasContent(x)) collapsed.add(x.id); });
+  const it = newItem();
+  R.items.push(it);
+  renderItems();
+  changed();
+  scrollToItem(it);
+}
+function copyItem(it) {
+  const c = clone(it), rec = R;
+  c.id = uid();
+  c.stones.forEach(s => { s.id = uid(); });
+  c.photo = c.photoUrl = '';
+  collapsed.add(it.id);
+  R.items.splice(R.items.indexOf(it) + 1, 0, c);
+  renderItems();
+  changed();
+  scrollToItem(c);
+  toast('ပစ္စည်း ကော်ပီ ကူးပြီး', () => {
+    if (R !== rec || !R.items.includes(c)) return;
+    R.items.splice(R.items.indexOf(c), 1);
+    collapsed.delete(it.id);
+    renderItems();
+    changed();
+  });
+}
+function delItem(it) {
+  const i = R.items.indexOf(it), rec = R;
+  R.items.splice(i, 1);
+  renderItems();
+  changed();
+  toast(`ပစ္စည်း ${myNum(i + 1)} ဖျက်ပြီး`, () => { if (R !== rec) return; R.items.splice(i, 0, it); renderItems(); changed(); });
+}
+
+/* ───────── recalc: updates text only ───────── */
+function recalc() {
+  const c = calcReceipt(R), hasBase = num(R.base) > 0;
+  R.items.forEach((it, i) => {
+    const ref = refs.get(it.id), ic = c.items[i];
+    if (!ref) return;
+    ref.rate.textContent = hasBase ? money(ic.rate) : 'ပေါက်စျေး အရင်ထည့်ပါ';
+    ref.fin.textContent = ic.fin == null ? '—' : fmtW(ic.fin);
+    ref.err.hidden = !it.err;
+    ref.err.textContent = it.err === 'gold' ? 'ကျောက်+စိန်ချိန် က ကျောက်+စိန်+ရွှေ ထက် များနေသည် — ပြန်စစ်ပါ'
+      : 'ရွှေချိန် က ကျောက်+စိန်+ရွှေ ထက် များနေသည် — ပြန်စစ်ပါ';
+    it.stones.forEach((s, j) => {
+      const r = ref.stones.get(s.id);
+      if (!r) return;
+      r.rb.textContent = num(s.ct) ? fmtRB(ic.stones[j].units) : '—';
+      r.val.textContent = money(ic.stones[j].value);
+    });
+    ref.sum.gold.textContent = ic.fin == null ? '—' : `${fmtW(ic.fin)} × ${money(ic.rate)} = ${money(ic.goldVal)}`;
+    ref.sum.stone.textContent = money(ic.stoneVal);
+    ref.sum.lak.textContent = money(ic.lak);
+    ref.sum.white.textContent = money(ic.white);
+    ref.sum.pwa.textContent = `× ${ic.pwa}`;
+    ref.pwaRow.hidden = ic.pwa === 1;
+    ref.sum.sub.textContent = money(ic.sub) + ' ကျပ်';
+    ref.peekName.textContent = it.name;
+    ref.peekW.textContent = ic.weight ? fmtW(ic.weight) : '';
+    ref.peekT.textContent = ic.sub ? money(ic.sub) : '';
+  });
+  $('tWeight').textContent = fmtW(c.weight);
+  $('tGold').textContent = money(c.gold);
+  $('tStone').textContent = money(c.stone);
+  $('tLak').textContent = money(c.lak);
+  $('tWhite').textContent = money(c.white);
+  $('tTotal').textContent = money(c.total) + ' ကျပ်';
+  $('barTotal').textContent = money(c.total) + ' ကျပ်';
+  $('barW').textContent = `အမှတ် ${R.no || '—'}   ချိန် ${fmtW(c.weight)}   ပစ္စည်း ${myNum(R.items.length)} ခု`;
+
+  const dup = findDup();
+  $('dupWarn').hidden = !dup;
+  if (dup) $('dupWarn').textContent = `⚠ အမှတ် ${dup.no} ကို ${dmy(dup.date)} ${dup.name || ''} အတွက် သိမ်းပြီးသား။ သိမ်းလျှင် အဟောင်းကို အစားထိုးမည်။`;
+  const done = !dirty && !!R.savedAt && !dup;
+  [$('btnSave'), $('barSave')].forEach(b => {
+    b.textContent = done ? 'သိမ်းပြီး ✓' : dup ? 'အစားထိုး သိမ်းမည်' : 'သိမ်းမည်';
+    b.classList.toggle('done', done);
+  });
+}
+
+function showMode() {
+  document.body.classList.toggle('weight-mode', !R.goldCash);
+  $('modeWeight').setAttribute('aria-pressed', String(!R.goldCash));
+  $('modeCash').setAttribute('aria-pressed', String(!!R.goldCash));
+}
+function renderAll() {
+  showMode();
+  $('fNo').value = R.no;
+  $('fDate').value = R.date;
+  $('fName').value = R.name;
+  $('fPhone').value = R.phone;
+  $('fAddr').value = R.address;
+  $('fBase').value = fmtAmount(R.base);
+  renderItems();
+  recalc();
+}
+
+/* ───────── save / open / delete ───────── */
+function saveCurrent() {
+  if (!hasAny(R)) { toast('ဝယ်သူ သို့မဟုတ် ပစ္စည်း အရင်ထည့်ပါ'); return; }
+  const no = String(Math.round(num(R.no)) || '');
+  if (!no) { toast('ဘောင်ချာ အမှတ် ထည့်ပါ'); $('fNo').focus(); return; }
+  R.no = no;
+  $('fNo').value = no;
+  const before = SAVED;
+  const self = before.find(r => r.id === R.id);
+  const dup = findDup();
+  const also = self && String(self.no) !== no ? [String(self.no)] : [];   // renumbered → old number leaves the Sheet
+  R.savedAt = new Date().toISOString();
+  const rec = clone(R);
+  rec.synced = false;
+  rec.total = calcReceipt(rec).total;
+  if (!storeSaved(before.filter(r => r.id !== R.id && String(r.no) !== no).concat(rec))) return;
+  store('lastNo', Math.max(num(load('lastNo', 0)), num(no)));
+  dirty = false;
+  store('draft', R);
+  store('dirty', false);
+  enqueue(no, also);
+  refreshToday();
+  recalc();
+  if (dup) toast(`ဘောင်ချာ ${no} ကို အစားထိုး သိမ်းပြီး`, () => {
+    storeSaved(before);
+    enqueue(no, []);
+    also.forEach(n => enqueue(n, []));
+    dirty = true;
+    refreshToday();
+    recalc();
+  });
+  else toast(`ဘောင်ချာ ${no} သိမ်းပြီး`);
+}
+function showReceipt(next, msg) {
+  const prev = R, prevDirty = dirty;
+  R = next;
+  collapsed.clear();
+  if (R.items.length > 1) R.items.forEach(it => collapsed.add(it.id));
+  dirty = false;
+  renderAll();
+  window.scrollTo(0, 0);
+  changed(false);
+  if (hasAny(prev) && prev.id !== R.id) toast(msg, () => { R = prev; dirty = prevDirty; collapsed.clear(); renderAll(); changed(false); });
+}
+function openSaved(id) {
+  const rec = SAVED.find(r => r.id === id);
+  if (!rec) return;
+  const next = clone(rec);
+  delete next.synced;
+  delete next.total;
+  closeModal();
+  showReceipt(next, `ဘောင်ချာ ${next.no} ကို ဖွင့်ပြီး`);
+}
+function newReceiptClick() {
+  showReceipt(newReceipt(), 'ဘောင်ချာအသစ် ဖွင့်ပြီး');
+  syncNo();
+}
+function delSaved(id, after) {
+  const rec = SAVED.find(r => r.id === id);
+  if (!rec) return;
+  storeSaved(SAVED.filter(r => r.id !== id));
+  enqueue(rec.no, []);
+  refreshToday();
+  recalc();
+  if (after) after();
+  toast(`ဘောင်ချာ ${rec.no} ဖျက်ပြီး`, () => {
+    storeSaved(SAVED.filter(r => String(r.no) !== String(rec.no)).concat(rec));
+    enqueue(rec.no, []);
+    refreshToday();
+    recalc();
+    if (after) after();
+  });
+}
+function refreshToday() {
+  const t = todayISO(), list = SAVED.filter(r => r.date === t);
+  const sum = list.reduce((a, r) => a + (r.total ?? calcReceipt(r).total), 0);
+  $('todayCount').textContent = `ယနေ့ ဘောင်ချာ ${myNum(list.length)} စောင်`;
+  $('todayTotal').textContent = money(sum) + ' ကျပ်';
+}
+
+/* ───────── sync: text/plain POST → no-cors → offline queue ───────── */
+let flushing = false, inflight = null, syncErr = null;
+
+async function post(payload) {
+  const c = cfg();
+  if (!c.url) throw new Error('no-url');
+  const opts = { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: c.key }, payload)) };
+  let res;
+  try {
+    res = await fetch(c.url, Object.assign({ redirect: 'follow' }, opts));
+  } catch (e) {
+    // CORS ပိတ်ခံရရင် no-cors နဲ့ ထပ်ပို့ (အဖြေ မဖတ်နိုင်)။ ဒါလည်း ကျရင် queue ထဲ ကျန်ပြီး နောက်မှ ထပ်ပို့
+    await fetch(c.url, Object.assign({ mode: 'no-cors' }, opts));
+    return { ok: true, opaque: true };
+  }
+  let j;
+  try { j = await res.json(); } catch (e) { throw new Error('bad-response'); }
+  if (!j.ok) throw new Error(j.error || 'server');
+  return j;
+}
+function enqueue(no, also) {
+  no = String(no);
+  let q = load('queue', []);
+  const prev = q.filter(e => e.no === no && e.seq !== inflight);
+  const merged = new Set(also.map(String));
+  prev.forEach(e => e.also.forEach(a => merged.add(a)));
+  merged.delete(no);
+  q = q.filter(e => !prev.includes(e));
+  q.push({ seq: Date.now() + '-' + Math.random().toString(36).slice(2, 6), no, also: [...merged] });
+  store('queue', q);
+  updateSyncUI();
+  flushQueue();
+}
+// A queued number is sent as a save if the receipt still exists here, otherwise as a delete.
+async function sendEntry(e) {
+  const rec = SAVED.find(r => String(r.no) === e.no);
+  if (!rec) { await post({ action: 'delete', nos: [e.no].concat(e.also) }); return; }
+  const rows = receiptRows(rec).map(row => row.map((v, i) =>
+    typeof v === 'string' && v !== '' && (TEXT_IDX.has(i) || /^[=+\-@]/.test(v)) ? "'" + v : v));
+  const photos = [];
+  let at = 0;
+  rec.items.forEach(it => {
+    if (it.photo && !it.photoUrl) photos.push({ itemId: it.id, row: at, name: `${rec.no}_${it.id}.jpg`, data: it.photo });
+    at += rowsPerItem(it);
+  });
+  const j = await post({ action: 'save', no: rec.no, also: e.also, headers: HEADERS, rows, photoCol: PHOTO_COL, photos });
+  const urls = j.photos || {};
+  const t = SAVED.find(r => r.id === rec.id);
+  if (t) {
+    if (t.savedAt === rec.savedAt) t.synced = true;
+    t.items.forEach(it => { if (urls[it.id]) it.photoUrl = urls[it.id]; });
+    storeSaved(SAVED);
+  }
+  if (R.id === rec.id) R.items.forEach(it => { if (urls[it.id]) it.photoUrl = urls[it.id]; });
+}
+async function flushQueue() {
+  if (flushing || !cfg().url) { updateSyncUI(); return; }
+  flushing = true;
+  try {
+    for (;;) {
+      const e = load('queue', [])[0];
+      if (!e) break;
+      inflight = e.seq;
+      try { await sendEntry(e); syncErr = null; }
+      catch (err) { syncErr = err; break; }
+      finally { inflight = null; }
+      store('queue', load('queue', []).filter(x => x.seq !== e.seq));
+      updateSyncUI();
+    }
+  } finally {
+    flushing = false;
+    updateSyncUI();
+  }
+}
+// Several phones → take the next number from the Sheet when online
+async function syncNo() {
+  if (!cfg().url) return;
+  try {
+    const j = await post({ action: 'maxNo' });
+    if (j.opaque || !isFinite(j.max)) return;
+    store('lastNo', Math.max(num(load('lastNo', 0)), j.max));
+    if (!R.savedAt && !hasAny(R) && num(R.no) <= j.max && document.activeElement !== $('fNo')) {
+      R.no = String(j.max + 1);
+      $('fNo').value = R.no;
+      changed(false);
+    }
+  } catch (e) { /* offline — local numbering stands */ }
+}
+function errText(e) {
+  const m = String((e && e.message) || e);
+  return ({ 'no-url': 'Drive URL မထည့်ရသေးပါ', 'bad-key': 'လျှို့ဝှက်ကီး မကိုက်ပါ — Code.gs ထဲက SECRET နဲ့ တူအောင် ပြင်ပါ',
+    'bad-response': 'Apps Script deploy မှာ "Anyone" ပေးထားလား စစ်ပါ', 'busy': 'Sheet အလုပ်များနေသည် — ခဏနေ ပြန်ပို့မည်' })[m]
+    || (navigator.onLine === false ? 'အင်တာနက် မရှိပါ — ပြန်ရလျှင် အလိုအလျောက် ပို့မည်' : 'ချိတ်ဆက်မှု မရပါ — ခဏနေ ပြန်ပို့မည်');
+}
+function updateSyncUI() {
+  const q = load('queue', []).length, hasUrl = !!cfg().url;
+  $('syncDot').className = 'dot ' + (!hasUrl ? '' : syncErr ? 'bad' : q ? 'wait' : 'ok');
+  $('syncText').textContent = !hasUrl ? 'Drive ချိတ်ရန်' : syncErr ? 'ပို့မရ' : q ? `${myNum(q)} စောင် မပို့ရသေး` : 'Drive ✓';
+}
+
+/* ───────── modals ───────── */
+let modalReturn = null;
+function openModal(title, body) {
+  modalReturn = document.activeElement;
+  $('mTitle').textContent = title;
+  $('mBody').replaceChildren(body);
+  $('modal').hidden = false;
+}
+function closeModal() {
+  $('modal').hidden = true;
+  $('mBody').replaceChildren();
+  if (modalReturn && modalReturn.isConnected) modalReturn.focus();
+}
+
+function openRates(it) {
+  const base = num(R.base);
+  if (!base) { toast('ပေါက်စျေး အရင်ထည့်ပါ'); $('fBase').focus(); return; }
+  const pick = (pe, py) => {
+    it.pe = pe; it.pyar = py;
+    setPref({ pe, pyar: py });
+    const ref = refs.get(it.id);
+    ref.pe.value = String(pe);
+    ref.pyar.value = String(py);
+    ref.pyar.disabled = pe >= 16;
+    changed();
+    closeModal();
+  };
+  const cellFor = (pe, py) => {
+    if (pe >= 16 && py) return h('span', {}, '—');
+    const txt = money(goldRate(base, pe, py));
+    return it ? h('button', { type: 'button', class: it.pe == pe && it.pyar == py ? 'on' : null, onclick: () => pick(pe, py) }, txt)
+      : h('span', {}, txt);
+  };
+  const table = h('table', { class: 'rates' },
+    h('thead', {}, h('tr', {}, h('th', {}, 'ရည်'), PYAR_OPTIONS.map(py => h('th', {}, `${py} ပြား`)))),
+    h('tbody', {}, PE_OPTIONS.map(pe => h('tr', {}, h('th', {}, `${pe} ပဲ`), PYAR_OPTIONS.map(py => h('td', {}, cellFor(pe, py)))))));
+  openModal('ရွှေနှုန်းဇယား', h('div', {},
+    h('p', { class: 'muted' }, `ပေါက်စျေး ${money(base)} ဖြင့် ၁ ကျပ်သား နှုန်း`),
+    table,
+    h('p', { class: 'muted' }, it ? 'ဂဏန်းကို နှိပ်လျှင် ဒီပစ္စည်းရဲ့ ရည်ကို ပြောင်းမည်' : 'နှုန်း = ပေါက်စျေး × ရည် ÷ ၁၆')));
+}
+
+function searchText(r) {
+  const [y, m, d] = (r.date || '--').split('-');
+  return [r.no, r.name, latin(r.phone), r.date, `${d}-${m}-${y}`, `${d}/${m}/${y}`, `${+d}-${+m}-${y}`, `${+d}/${+m}/${y}`].join(' ').toLowerCase();
+}
+function openSearch() {
+  const q = h('input', { type: 'search', placeholder: 'အမည်၊ အမှတ်၊ ဖုန်း သို့မဟုတ် ရက်စွဲ', autocomplete: 'off', 'aria-label': 'ရှာရန်' });
+  const info = h('span', { class: 'muted' });
+  const list = h('div');
+  let shown = [];
+  const draw = () => {
+    const t = latin(q.value).trim().toLowerCase();
+    const all = SAVED.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || num(b.no) - num(a.no));
+    shown = t ? all.filter(r => searchText(r).includes(t)) : all;
+    info.textContent = `${myNum(shown.length)} စောင်`;
+    if (!shown.length) {
+      list.replaceChildren(h('p', { class: 'empty' }, all.length
+        ? `"${q.value.trim()}" နဲ့ ကိုက်တာ မတွေ့ပါ။ ရက်စွဲကို ${dmy(todayISO())} ပုံစံ ရိုက်ကြည့်ပါ။`
+        : 'သိမ်းထားသော ဘောင်ချာ မရှိသေးပါ။ ဘောင်ချာ ရေးပြီး "သိမ်းမည်" နှိပ်လျှင် ဒီမှာ ပေါ်မည်။'));
+      return;
+    }
+    list.replaceChildren(...shown.slice(0, 200).map(r => h('div', { class: 'ritem' },
+      h('button', { type: 'button', class: 'ropen', onclick: () => openSaved(r.id) },
+        h('div', { class: 'r1' }, h('b', {}, `#${r.no}`), h('span', {}, dmy(r.date)),
+          h('span', { class: 'dot ' + (r.synced ? 'ok' : 'wait'), title: r.synced ? 'Drive ထဲ ရောက်ပြီး' : 'Drive ထဲ မပို့ရသေး' })),
+        h('div', {}, (r.name || 'အမည်မရှိ') + (r.phone ? '   ' + r.phone : '')),
+        h('div', { class: 'r3' }, money(r.total ?? calcReceipt(r).total) + ' ကျပ်')),
+      h('button', { type: 'button', class: 'x', 'aria-label': `ဘောင်ချာ ${r.no} ဖျက်မည်`, onclick: () => delSaved(r.id, draw) }, '✕'))));
+  };
+  q.addEventListener('input', draw);
+  openModal('သိမ်းထားသော ဘောင်ချာများ', h('div', {}, q,
+    h('div', { class: 'rtools' }, info, h('button', { type: 'button', class: 'sm', onclick: () => exportCSV(shown) }, 'CSV ထုတ်မည်')),
+    list));
+  draw();
+  q.focus();
+}
+
+function openSettings() {
+  const c = load('cfg', {});
+  const url = h('input', { value: c.url || SYNC_DEFAULT.url, placeholder: 'https://script.google.com/macros/s/…/exec', autocomplete: 'off', inputmode: 'url' });
+  const key = h('input', { value: c.key || SYNC_DEFAULT.key, autocomplete: 'off' });
+  const msg = h('div', { class: 'muted', role: 'status' });
+  const keep = () => { store('cfg', { url: url.value.trim(), key: key.value.trim() }); syncErr = null; updateSyncUI(); };
+  const run = async (label, payload, done) => {
+    keep();
+    msg.textContent = label;
+    try { done(await post(payload)); } catch (e) { msg.textContent = errText(e); }
+  };
+  openModal('Drive ချိတ်ဆက်ရန်', h('div', { class: 'stack' },
+    h('p', { class: 'muted' }, 'ဘောင်ချာတွေ Google Sheet ထဲ ရောက်ဖို့ ဆိုင်ရှင် တစ်ခါ ထည့်ပေးရန်'),
+    field('Apps Script Web App URL', url),
+    field('လျှို့ဝှက်ကီး', key),
+    h('div', { class: 'row-btns' },
+      h('button', { type: 'button', class: 'primary', onclick: () => run('စမ်းနေသည်…', { action: 'ping' }, j => {
+        msg.textContent = j.opaque ? 'ပို့လိုက်ပြီ (အဖြေကို ဖတ်မရပါ)' : 'ချိတ်ပြီး ✓';
+        flushQueue();
+        syncNo();
+      }) }, 'သိမ်းပြီး စမ်းမည်'),
+      h('button', { type: 'button', onclick: () => run('Excel ဖိုင် ထုတ်နေသည်…', { action: 'exportXlsx' }, j => {
+        if (j.url) msg.replaceChildren(h('a', { href: j.url, target: '_blank', rel: 'noopener' }, 'Excel ဖိုင် ဖွင့်မည်'));
+        else msg.textContent = 'ထုတ်ပြီး — Drive ထဲ "ရွှေဆိုင် Excel" ဖိုင်တွဲ ကြည့်ပါ';
+      }) }, 'Excel ထုတ်မည်')),
+    msg));
+}
+
+/* ───────── CSV (same columns as the Sheet) ───────── */
+function csvCell(v) { v = v == null ? '' : String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function exportCSV(list) {
+  if (!list.length) { toast('ထုတ်စရာ ဘောင်ချာ မရှိပါ'); return; }
+  const csv = [HEADERS].concat(...list.map(receiptRows)).map(r => r.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  const a = h('a', { href: url, download: `ဘောင်ချာ-${todayISO()}.csv` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/* ───────── printed slip ───────── */
+function buildSlip() {
+  const c = calcReceipt(R);
+  const tr = (k, v, cls) => h('tr', { class: cls || null }, h('td', {}, k), h('td', { class: 'r' }, v));
+  const items = R.items.map((it, i) => {
+    const ic = c.items[i], w = it.w;
+    const lad = h('table', { class: 'lad' },
+      tr('ကျောက်+စိန်+ရွှေ', w.total != null ? fmtW(w.total) : '—'),
+      tr('ကျောက်+စိန်ချိန်', w.stone != null ? '− ' + fmtW(w.stone) : '—'),
+      tr('ရွှေချိန်', w.gold != null ? fmtW(w.gold) : '—', 'b'),
+      tr('လျော့', w.loss != null ? '+ ' + fmtW(w.loss) : '—'),
+      tr('စုစုပေါင်းချိန်', ic.fin != null ? fmtW(ic.fin) : '—', 'b line'));
+    const st = it.stones.length ? h('table', { class: 'st' }, it.stones.map((s, j) => h('tr', {},
+      h('td', {}, `${s.kind} ${stoneLabel(s)}`),
+      h('td', {}, fmtRB(ic.stones[j].units)),
+      h('td', { class: 'r' }, '× ' + money(num(s.rate)) + (stoneBasis(s) === 'ct' ? ' /ct' : '')),
+      h('td', { class: 'r' }, money(ic.stones[j].value))))) : null;
+    const mn = h('table', { class: 'mn' },
+      R.goldCash ? tr(`ရွှေတန်ဖိုး (${ic.fin != null ? fmtW(ic.fin) : '—'} × ${money(ic.rate)})`, money(ic.goldVal)) : null,
+      ic.stoneVal ? tr('ကျောက်/စိန်တန်ဖိုး', money(ic.stoneVal)) : null,
+      ic.lak ? tr('လက်ခ', money(ic.lak)) : null,
+      ic.white ? tr('ရွှေဖြူခ', money(ic.white)) : null,
+      ic.pwa > 1 ? tr('ပွား', '× ' + ic.pwa) : null,
+      tr('ပစ္စည်းတန်ဖိုး', money(ic.sub), 'b line'));
+    return h('div', { class: 's-item' },
+      h('div', {}, h('b', {}, `${i + 1}. ${it.name || 'ပစ္စည်း'}`), ` — ${refLabel(it.pe, it.pyar)}` + (R.goldCash ? ` · နှုန်း ${money(ic.rate)}` : '')),
+      h('div', { class: 's-ib' }, h('div', { class: 's-left' }, lad, st, mn), it.photo ? h('img', { class: 's-ph', src: it.photo, alt: '' }) : null));
+  });
+  $('slip').replaceChildren(
+    h('div', { class: 's-head' },
+      h('div', { class: 's-shop' }, SHOP.name), h('div', {}, SHOP.kind),
+      h('div', { class: 's-small' }, [SHOP.owner, SHOP.address, SHOP.phone].filter(Boolean).join(' · '))),
+    h('div', { class: 's-meta' }, h('span', {}, `အမှတ် ${R.no}`), h('span', {}, `ရက်စွဲ ${dmy(R.date)}`)),
+    h('div', {}, `ဝယ်သူ — ${R.name}`, R.phone ? `   ဖုန်း ${R.phone}` : '', R.address ? `   လိပ်စာ ${R.address}` : ''),
+    R.goldCash ? h('div', { class: 's-small' }, `ပေါက်စျေး ${money(num(R.base))}`) : null,
+    ...items,
+    h('table', { class: 's-tot' }, tr('စုစုပေါင်းချိန်', fmtW(c.weight)), tr('ကျသင့်ငွေ', money(c.total) + ' ကျပ်', 'b big')),
+    h('div', { class: 's-sign' }, h('span', {}, 'ဝယ်သူ'), h('span', {}, 'ရောင်းသူ')));
+}
+
+/* ───────── toast with undo ───────── */
+let toastTimer;
+function toast(msg, undo) {
+  const t = $('toast'), b = $('tUndo');
+  $('tMsg').textContent = msg;
+  b.hidden = !undo;
+  b.onclick = () => { t.hidden = true; clearTimeout(toastTimer); undo(); };
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 7000 : 2500);
+}
+
+/* ───────── init ───────── */
+function init() {
+  $('shopName').textContent = SHOP.name;
+  $('shopKind').textContent = SHOP.kind;
+  document.title = SHOP.name + ' ဘောင်ချာ';
+
+  const bind = (id, key) => $(id).addEventListener('input', e => { R[key] = e.target.value; changed(); });
+  bind('fName', 'name');
+  bind('fPhone', 'phone');
+  bind('fAddr', 'address');
+  bind('fDate', 'date');
+  $('fNo').addEventListener('input', e => { R.no = latin(e.target.value).replace(/\D/g, ''); changed(); });
+  $('fBase').addEventListener('input', e => { R.base = e.target.value; setPref({ base: R.base }); changed(); });
+  $('fBase').addEventListener('blur', e => { if (e.target.value.trim()) { e.target.value = fmtAmount(e.target.value); R.base = e.target.value; setPref({ base: R.base }); } });
+
+  const setMode = cash => { R.goldCash = cash; setPref({ goldCash: cash }); showMode(); changed(); };
+  $('modeWeight').onclick = () => setMode(false);
+  $('modeCash').onclick = () => setMode(true);
+  $('btnNew').onclick = newReceiptClick;
+  $('btnSearch').onclick = openSearch;
+  $('btnSettings').onclick = openSettings;
+  $('btnRates').onclick = () => openRates(null);
+  $('btnAddItem').onclick = addItem;
+  $('btnSave').onclick = $('barSave').onclick = saveCurrent;
+  $('btnPrint').onclick = () => { buildSlip(); window.print(); };
+  $('btnSync').onclick = () => {
+    if (!cfg().url) { openSettings(); return; }
+    const q = load('queue', []).length;
+    toast(syncErr ? errText(syncErr) : q ? `${myNum(q)} စောင် ပို့နေသည်…` : 'ဘောင်ချာ အားလုံး Drive ထဲ ရောက်ပြီး');
+    flushQueue();
+  };
+  $('mClose').onclick = closeModal;
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+  window.addEventListener('beforeprint', buildSlip);
+  window.addEventListener('online', flushQueue);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { store('draft', R); store('dirty', dirty); } });
+  setInterval(() => { if (load('queue', []).length) flushQueue(); }, 60000);
+
+  R = load('draft') || newReceipt();
+  R.items.slice(0, -1).forEach(it => { if (hasContent(it)) collapsed.add(it.id); });   // keep the item in progress open
+  renderAll();
+  refreshToday();
+  updateSyncUI();
+  flushQueue();
+  syncNo();
+}
+init();
+// Opens with no internet once installed (sw.js sits beside the page in site/)
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
