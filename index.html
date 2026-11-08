@@ -547,6 +547,11 @@ function storeSaved(list) {
     r.items.forEach(it => { if (it.photo && it.photoUrl) { it.photo = ''; freed = true; } });
     if (freed && store('saved', list)) return true;
   }
+  // Still full: the oldest receipts already in the Sheet leave this phone only
+  for (const r of old) {
+    list.splice(list.indexOf(r), 1);
+    if (store('saved', list)) return true;
+  }
   toast('ဖုန်းထဲ နေရာပြည့်နေသဖြင့် မသိမ်းနိုင်ပါ — ဘောင်ချာဟောင်း အချို့ ဖျက်ပါ');
   return false;
 }
@@ -970,18 +975,21 @@ function saveCurrent() {
   const rec = clone(R);
   rec.synced = false;
   rec.total = calcReceipt(rec).total;
+  const replaces = ((self && self.replaces) || []).concat(dup ? [dup.id] : []);
+  if (replaces.length) rec.replaces = replaces;
   if (!storeSaved(before.filter(r => r.id !== R.id && String(r.no) !== no).concat(rec))) return;
   store('lastNo', Math.max(num(load('lastNo', 0)), num(no)));
   dirty = false;
   store('draft', R);
   store('dirty', false);
-  enqueue(no, also);
+  enqueue(no, also, rec.id);
   refreshToday();
   recalc();
   if (dup) toast(`ဘောင်ချာ ${no} ကို အစားထိုး သိမ်းပြီး`, () => {
+    if (!self) dup.replaces = [rec.id];
     storeSaved(before);
-    enqueue(no, []);
-    also.forEach(n => enqueue(n, []));
+    if (self) enqueue(self.no, [], self.id);
+    enqueue(no, [], dup.id);
     dirty = true;
     refreshToday();
     recalc();
@@ -1010,19 +1018,19 @@ function openSaved(id) {
 }
 function newReceiptClick() {
   showReceipt(newReceipt(), 'ဘောင်ချာအသစ် ဖွင့်ပြီး');
-  syncNo();
+  pullFromSheet();
 }
 function delSaved(id, after) {
   const rec = SAVED.find(r => r.id === id);
   if (!rec) return;
   storeSaved(SAVED.filter(r => r.id !== id));
-  enqueue(rec.no, []);
+  enqueue(rec.no, [], rec.id);
   refreshToday();
   recalc();
   if (after) after();
   toast(`ဘောင်ချာ ${rec.no} ဖျက်ပြီး`, () => {
     storeSaved(SAVED.filter(r => String(r.no) !== String(rec.no)).concat(rec));
-    enqueue(rec.no, []);
+    enqueue(rec.no, [], rec.id);
     refreshToday();
     recalc();
     if (after) after();
@@ -1055,23 +1063,23 @@ async function post(payload) {
   if (!j.ok) throw new Error(j.error || 'server');
   return j;
 }
-function enqueue(no, also) {
+function enqueue(no, also, id) {
   no = String(no);
   let q = load('queue', []);
-  const prev = q.filter(e => e.no === no && e.seq !== inflight);
+  const prev = q.filter(e => e.seq !== inflight && (e.id ? e.id === id : e.no === no));
   const merged = new Set(also.map(String));
-  prev.forEach(e => e.also.forEach(a => merged.add(a)));
+  prev.forEach(e => { merged.add(e.no); e.also.forEach(a => merged.add(a)); });
   merged.delete(no);
   q = q.filter(e => !prev.includes(e));
-  q.push({ seq: Date.now() + '-' + Math.random().toString(36).slice(2, 6), no, also: [...merged] });
+  q.push({ seq: Date.now() + '-' + Math.random().toString(36).slice(2, 6), no, also: [...merged], id });
   store('queue', q);
   updateSyncUI();
   flushQueue();
 }
-// A queued number is sent as a save if the receipt still exists here, otherwise as a delete.
+// A queued receipt is sent as a save if it still exists here, otherwise as a delete.
 async function sendEntry(e) {
-  const rec = SAVED.find(r => String(r.no) === e.no);
-  if (!rec) { await post({ action: 'delete', nos: [e.no].concat(e.also) }); return; }
+  const rec = SAVED.find(r => e.id ? r.id === e.id : String(r.no) === e.no);
+  if (!rec) { await post({ action: 'delete', nos: [e.no].concat(e.also), ids: e.id ? [e.id] : [] }); return; }
   const rows = receiptRows(rec).map(row => row.map((v, i) =>
     typeof v === 'string' && v !== '' && (TEXT_IDX.has(i) || /^[=+\-@]/.test(v)) ? "'" + v : v));
   const photos = [];
@@ -1080,12 +1088,22 @@ async function sendEntry(e) {
     if (it.photo && !it.photoUrl) photos.push({ itemId: it.id, row: at, name: `${rec.no}_${it.id}.jpg`, data: it.photo });
     at += rowsPerItem(it);
   });
-  const j = await post({ action: 'save', no: rec.no, also: e.also, headers: HEADERS, rows, photoCol: PHOTO_COL, photos });
+  const record = clone(rec);   // photos travel as Drive links; the JSON copy stays small
+  delete record.synced;
+  delete record.replaces;
+  record.items.forEach(it => { it.photo = ''; });
+  const j = await post({ action: 'save', id: rec.id, no: rec.no, also: e.also, replaces: rec.replaces || [], record, headers: HEADERS, rows, photoCol: PHOTO_COL, photos });
   const urls = j.photos || {};
   const t = SAVED.find(r => r.id === rec.id);
   if (t) {
-    if (t.savedAt === rec.savedAt) t.synced = true;
+    if (t.savedAt === rec.savedAt) { t.synced = true; delete t.replaces; }
     t.items.forEach(it => { if (urls[it.id]) it.photoUrl = urls[it.id]; });
+    if (j.no != null && String(j.no) !== String(t.no)) {
+      toast(`အမှတ် ${t.no} ကို အခြားဖုန်းက သုံးပြီးသား — ဒီဘောင်ချာ အမှတ် ${j.no} ဖြစ်သွားပြီ`);
+      t.no = String(j.no);
+      store('lastNo', Math.max(num(load('lastNo', 0)), num(j.no)));
+      if (R.id === rec.id) { R.no = t.no; $('fNo').value = R.no; changed(false); }
+    }
     storeSaved(SAVED);
   }
   if (R.id === rec.id) R.items.forEach(it => { if (urls[it.id]) it.photoUrl = urls[it.id]; });
@@ -1093,6 +1111,7 @@ async function sendEntry(e) {
 async function flushQueue() {
   if (flushing || !cfg().url) { updateSyncUI(); return; }
   flushing = true;
+  let sent = false;
   try {
     for (;;) {
       const e = load('queue', [])[0];
@@ -1102,26 +1121,69 @@ async function flushQueue() {
       catch (err) { syncErr = err; break; }
       finally { inflight = null; }
       store('queue', load('queue', []).filter(x => x.seq !== e.seq));
+      sent = true;
       updateSyncUI();
     }
   } finally {
     flushing = false;
     updateSyncUI();
+    if (sent) pullFromSheet();
   }
 }
-// Several phones → take the next number from the Sheet when online
-async function syncNo() {
-  if (!cfg().url) return;
+// Several phones → take in what the others saved or deleted, and the next free number.
+// Shares the `flushing` guard so a reply from before this phone's own save can't overwrite it.
+async function pullFromSheet() {
+  if (flushing || !cfg().url) return;
+  flushing = true;
   try {
-    const j = await post({ action: 'maxNo' });
-    if (j.opaque || !isFinite(j.max)) return;
-    store('lastNo', Math.max(num(load('lastNo', 0)), j.max));
-    if (!R.savedAt && !hasAny(R) && num(R.no) <= j.max && document.activeElement !== $('fNo')) {
-      R.no = String(j.max + 1);
-      $('fNo').value = R.no;
-      changed(false);
-    }
-  } catch (e) { /* offline — local numbering stands */ }
+    const j = await post({ action: 'pull', since: load('syncStamp', 0) });
+    if (!j.opaque) mergePulled(j);
+  } catch (e) { /* offline — this phone's copy stands */ }
+  finally {
+    flushing = false;
+    if (load('queue', []).length) flushQueue();
+  }
+}
+function mergePulled(j) {
+  const pending = new Set(load('queue', []).map(e => e.id));   // changes still on their way out win
+  const list = SAVED.slice(), taken = new Set();
+  let touched = false;
+  j.records.forEach(p => {
+    if (pending.has(p.id)) return;
+    const at = list.findIndex(r => r.id === p.id), local = list[at];
+    if (p.deleted) { if (local) { list.splice(at, 1); touched = true; } return; }
+    const rec = JSON.parse(p.json);
+    if (local && local.savedAt === rec.savedAt && String(local.no) === String(rec.no)) return;
+    rec.items.forEach(it => { const old = local && local.items.find(x => x.id === it.id); if (old && old.photo) it.photo = old.photo; });
+    rec.synced = true;
+    if (local) list[at] = rec; else list.push(rec);
+    taken.add(String(rec.no));
+    touched = true;
+  });
+  if (touched && !storeSaved(list)) return;
+  store('syncStamp', j.stamp);
+  if (!load('seeded')) {   // first sync on this phone: share what it already holds
+    store('seeded', true);
+    const got = new Set(j.records.map(p => p.id));
+    SAVED.filter(r => !got.has(r.id)).forEach(r => enqueue(r.no, [], r.id));
+  }
+  store('lastNo', Math.max(num(load('lastNo', 0)), j.max || 0));
+  const clash = !R.savedAt && taken.has(String(R.no));
+  if ((clash || (!R.savedAt && !hasAny(R) && num(R.no) <= j.max)) && document.activeElement !== $('fNo')) {
+    const old = R.no;
+    R.no = String(nextNo());
+    $('fNo').value = R.no;
+    changed(false);
+    if (clash && hasAny(R)) toast(`အမှတ် ${old} ကို အခြားဖုန်းက သုံးပြီးသား — အမှတ် ${R.no} သို့ ပြောင်းပြီး`);
+  }
+  const open = SAVED.find(r => r.id === R.id);
+  if (open && R.savedAt && open.savedAt !== R.savedAt && !dirty && !/^(INPUT|SELECT)$/.test(document.activeElement.tagName)) {
+    R = clone(open);
+    delete R.synced;
+    delete R.total;
+    renderAll();
+  }
+  if (touched) { refreshToday(); recalc(); }
 }
 function errText(e) {
   const m = String((e && e.message) || e);
@@ -1232,7 +1294,7 @@ function openSettings() {
       h('button', { type: 'button', class: 'primary', onclick: () => run('စမ်းနေသည်…', { action: 'ping' }, j => {
         msg.textContent = j.opaque ? 'ပို့လိုက်ပြီ (အဖြေကို ဖတ်မရပါ)' : 'ချိတ်ပြီး ✓';
         flushQueue();
-        syncNo();
+        pullFromSheet();
       }) }, 'သိမ်းပြီး စမ်းမည်'),
       h('button', { type: 'button', onclick: () => run('Excel ဖိုင် ထုတ်နေသည်…', { action: 'exportXlsx' }, j => {
         if (j.url) msg.replaceChildren(h('a', { href: j.url, target: '_blank', rel: 'noopener' }, 'Excel ဖိုင် ဖွင့်မည်'));
@@ -1341,9 +1403,9 @@ function init() {
   $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
   window.addEventListener('beforeprint', buildSlip);
-  window.addEventListener('online', flushQueue);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { store('draft', R); store('dirty', dirty); } });
-  setInterval(() => { if (load('queue', []).length) flushQueue(); }, 60000);
+  window.addEventListener('online', () => { flushQueue(); pullFromSheet(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { store('draft', R); store('dirty', dirty); } else pullFromSheet(); });
+  setInterval(() => { if (load('queue', []).length) flushQueue(); else if (!document.hidden) pullFromSheet(); }, 60000);
 
   R = load('draft') || newReceipt();
   R.items.slice(0, -1).forEach(it => { if (hasContent(it)) collapsed.add(it.id); });   // keep the item in progress open
@@ -1351,7 +1413,7 @@ function init() {
   refreshToday();
   updateSyncUI();
   flushQueue();
-  syncNo();
+  pullFromSheet();
 }
 init();
 // Opens with no internet once installed (sw.js sits beside the page in site/)
