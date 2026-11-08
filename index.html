@@ -210,6 +210,7 @@ table.rates button{line-height:1.2}
 table.rates button.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .rtools{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
 .ritem{display:flex;gap:8px;align-items:stretch;border-bottom:1px solid var(--desk-d);padding:6px 0}
+.ritem.sold{background:#D9EAD3;padding-left:6px;padding-right:6px;border-radius:6px}
 .ropen{flex:1;text-align:left;color:var(--text);font-weight:400;display:block;line-height:1.55}
 .r1{display:flex;gap:10px;align-items:center}
 .r1 b{color:var(--ink)}
@@ -1259,7 +1260,7 @@ function openSearch() {
         : 'သိမ်းထားသော ဘောင်ချာ မရှိသေးပါ။ ဘောင်ချာ ရေးပြီး "သိမ်းမည်" နှိပ်လျှင် ဒီမှာ ပေါ်မည်။'));
       return;
     }
-    list.replaceChildren(...shown.slice(0, 200).map(r => h('div', { class: 'ritem' },
+    list.replaceChildren(...shown.slice(0, 200).map(r => h('div', { class: 'ritem' + (String(r.name || '').trim() ? ' sold' : '') },
       h('button', { type: 'button', class: 'ropen', onclick: () => openSaved(r.id) },
         h('div', { class: 'r1' }, h('b', {}, `#${r.no}`), h('span', {}, dmy(r.date)),
           h('span', { class: 'dot ' + (r.synced ? 'ok' : 'wait'), title: r.synced ? 'Drive ထဲ ရောက်ပြီး' : 'Drive ထဲ မပို့ရသေး' })),
