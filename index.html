@@ -75,6 +75,11 @@ button.add{width:100%;border:1.5px dashed var(--print);background:transparent;co
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .headrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px}
 .no-input{font-size:24px;font-weight:700;letter-spacing:.02em}
+/* iPhones give date boxes their own minimum width, which pushes them past the slip's edge */
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;max-width:100%}
+input::-webkit-date-and-time-value{text-align:left}
+.headrow .f{min-width:0}
+.headrow input{height:52px}
 .mode{display:flex;align-items:center;gap:10px;padding-top:10px;margin-bottom:10px;border-top:1px solid var(--rule)}
 .mode>span{font-size:14px;color:var(--print);white-space:nowrap}
 .mode .seg{flex:1}
